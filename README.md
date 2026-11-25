@@ -96,6 +96,25 @@ Official icons are optional. Drop PNGs into `public/assets` with these exact nam
 - `public/assets/map/summoners-rift.png` (optional): replaces the drawn board. If the magnets don't sit on its lanes, nudge the positions in `src/board/slots.ts`.
 - `public/assets/backgrounds/` (optional): any JPG or PNG files, any names, shown as a darkened backdrop behind the page. By default a random one shows on each visit; **Settings → Background** lets you pick one or turn it off. Champion splash art from Riot's Data Dragon works well, e.g. `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Udyr_0.jpg` (change the champion key, and the number for other skins).
 
+## Match history
+
+Each night is a folder named by its date under `public/assets/history/`, e.g. `public/assets/history/2026-11-26/`. Every folder becomes a dropdown on the **Match history** tab, newest first, even before it has screenshots.
+
+Put the screenshots in that folder named by game: `game-1.png`, `game-2.jpg`, and so on (`game-2-b.png` adds a second picture to game 2). Anything not starting with `game-` shows under "More from the night". JPGs are much smaller than PNGs, which helps on phones. Then commit and push, or upload them on GitHub with **Add file → Upload files** inside that folder.
+
+## Stats
+
+The **Stats** tab shows gol.gg-style player and champion tables (games, win rate, KDA, average kills/deaths/assists, CS and gold per minute, kill participation, damage and gold share, damage and vision per minute) built from `src/data/match-stats.json`. Each game in that file lists the duration, the winning side and, for each player, the champion, K/D/A, CS, gold and, if the scoreboard shows them, damage to champions and vision score:
+
+```json
+{"nights": [{"date": "2026-11-26", "games": [
+  {"game": 1, "duration": "31:24", "winner": "blue",
+   "blue": [{"player": "Alex", "champ": "Master Yi", "role": "jg", "k": 7, "d": 2, "a": 5, "cs": 210, "gold": 12400, "dmg": 18300, "vision": 22}, "...4 more"],
+   "red":  ["...5 players"]}]}]}
+```
+
+`npm test` checks the file is well formed. Stats that need the game's timeline (gold difference at 15, first blood) can't come from the post-game scoreboard, so they aren't tracked.
+
 ## How teams are made
 
 - A player's rating in a role is main × (1 − 15% × steps). The 15% is editable in Settings.

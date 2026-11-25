@@ -7,4 +7,6 @@ declare module 'virtual:asset-manifest' {
   /** Image files under public/assets, e.g. "assets/champions/Shen.png". */
   const files: string[];
   export default files;
+  /** Date folders (YYYY-MM-DD) under public/assets/history, newest first. */
+  export const historyNights: string[];
 }

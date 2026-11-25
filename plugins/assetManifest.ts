@@ -10,6 +10,10 @@ import type { Plugin } from 'vite';
  * The app only requests images that are on this list, so a missing icon never
  * causes a 404 in the console: it just shows the placeholder. In dev, adding or
  * removing a file reloads the page so the new image shows straight away.
+ *
+ * It also exports `historyNights`: the date folders under
+ * public/assets/history (named YYYY-MM-DD), newest first. Each one becomes a
+ * night in the Match history tab, even before any screenshots are added.
  */
 const ID = 'virtual:asset-manifest';
 const RESOLVED = '\0' + ID;
@@ -35,6 +39,19 @@ function scan(publicDir: string): string[] {
   return out.sort();
 }
 
+function historyNights(publicDir: string): string[] {
+  try {
+    return fs
+      .readdirSync(path.join(publicDir, 'assets', 'history'), { withFileTypes: true })
+      .filter((e) => e.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(e.name))
+      .map((e) => e.name)
+      .sort()
+      .reverse();
+  } catch {
+    return [];
+  }
+}
+
 export function assetManifest(): Plugin {
   let publicDir = '';
   return {
@@ -47,7 +64,8 @@ export function assetManifest(): Plugin {
     },
     load(id) {
       if (id !== RESOLVED) return undefined;
-      return `export default ${JSON.stringify(scan(publicDir))};`;
+      return `export default ${JSON.stringify(scan(publicDir))};
+export const historyNights = ${JSON.stringify(historyNights(publicDir))};`;
     },
     configureServer(server) {
       const dir = path.join(publicDir, 'assets');
@@ -60,6 +78,8 @@ export function assetManifest(): Plugin {
       };
       server.watcher.on('add', refresh);
       server.watcher.on('unlink', refresh);
+      server.watcher.on('addDir', refresh);
+      server.watcher.on('unlinkDir', refresh);
     },
   };
 }

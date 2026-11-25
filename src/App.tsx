@@ -15,7 +15,9 @@ import { mergeRoster, type LockedRosterFile, type Player, type SecretRoster } fr
 import { unscrambleJson } from './lib/scramble.ts';
 import { load, save } from './lib/storage.ts';
 import { validTeams, type Teams } from './lib/teams.ts';
+import { HistoryScreen } from './screens/HistoryScreen.tsx';
 import { RosterScreen } from './screens/RosterScreen.tsx';
+import { StatsScreen } from './screens/StatsScreen.tsx';
 import { SettingsScreen } from './screens/SettingsScreen.tsx';
 import { TeamsScreen } from './screens/TeamsScreen.tsx';
 import { TonightScreen } from './screens/TonightScreen.tsx';
@@ -221,6 +223,8 @@ export function App() {
             notice={notice}
           />
         )}
+        {screen === 'history' && <HistoryScreen />}
+        {screen === 'stats' && <StatsScreen />}
         {screen === 'roster' && <RosterScreen players={PUBLIC} rated={rated} drop={drop} />}
         {screen === 'settings' && <SettingsScreen players={PUBLIC} drop={drop} onDrop={setDrop} background={background} onBackground={setBackground} />}
       </main>

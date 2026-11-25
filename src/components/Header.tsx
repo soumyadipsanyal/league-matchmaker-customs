@@ -1,8 +1,10 @@
-export type Screen = 'tonight' | 'teams' | 'roster' | 'settings';
+export type Screen = 'tonight' | 'teams' | 'history' | 'stats' | 'roster' | 'settings';
 
 export const SCREENS: { id: Screen; label: string }[] = [
   { id: 'tonight', label: 'Tonight' },
   { id: 'teams', label: 'Teams' },
+  { id: 'history', label: 'Match history' },
+  { id: 'stats', label: 'Stats' },
   { id: 'roster', label: 'Roster' },
   { id: 'settings', label: 'Settings' },
 ];
