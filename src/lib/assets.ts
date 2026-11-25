@@ -14,6 +14,19 @@ export const champPath = (key: string) => `assets/champions/${key}.png`;
 export const rolePath = (role: Role) => `assets/roles/${ROLE_FILE[role]}.png`;
 export const MAP_PATH = 'assets/map/summoners-rift.png';
 
+/** Splash art for the page backdrop: any image in public/assets/backgrounds, any name. */
+export const BACKGROUNDS_DIR = 'assets/backgrounds/';
+export const backgroundFiles: string[] = manifest.filter((f) => f.startsWith(BACKGROUNDS_DIR) && /\.(jpe?g|png|webp)$/i.test(f));
+
+/** "Udyr_0.jpg" → "Udyr", "MasterYi_3.jpg" → "Master Yi 3". */
+export const backgroundLabel = (path: string) =>
+  path
+    .slice(BACKGROUNDS_DIR.length)
+    .replace(/\.[a-z]+$/i, '')
+    .replace(/_0$/, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2');
+
 export type AssetState = { kind: 'found' } | { kind: 'missing' } | { kind: 'wrong-case'; actual: string };
 
 export function assetState(path: string): AssetState {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import lockedRoster from './data/roster.locked.json';
 import { Footer } from './components/Footer.tsx';
+import { Backdrop } from './components/Icons.tsx';
 import { Header, SCREENS, type Screen } from './components/Header.tsx';
 import { UnlockDialog } from './components/UnlockDialog.tsx';
 import { runMatch } from './engine/client.ts';
@@ -8,6 +9,7 @@ import { DEFAULT_STEP_DROP, STEP_DROP_MAX, STEP_DROP_MIN } from './engine/consta
 import { lineupKey } from './engine/lineup.ts';
 import type { MatchPlayer } from './engine/matchmaker.ts';
 import { slotsFor } from './engine/rating.ts';
+import { backgroundFiles } from './lib/assets.ts';
 import { decryptJson } from './lib/lock.ts';
 import { mergeRoster, type LockedRosterFile, type Player, type SecretRoster } from './lib/roster.ts';
 import { unscrambleJson } from './lib/scramble.ts';
@@ -47,10 +49,24 @@ function initialSelection() {
   };
 }
 
-function initialDrop(): number {
-  const d = load<{ drop: number }>('settings')?.drop;
-  return typeof d === 'number' && d >= STEP_DROP_MIN && d <= STEP_DROP_MAX ? d : DEFAULT_STEP_DROP;
+interface SavedSettings {
+  drop: number;
+  /** 'random', 'none' or a file under assets/backgrounds/. */
+  background: string;
 }
+
+function initialSettings(): SavedSettings {
+  const s = load<Partial<SavedSettings>>('settings');
+  const d = s?.drop;
+  const b = s?.background;
+  return {
+    drop: typeof d === 'number' && d >= STEP_DROP_MIN && d <= STEP_DROP_MAX ? d : DEFAULT_STEP_DROP,
+    background: b === 'none' || (typeof b === 'string' && backgroundFiles.includes(b)) ? b : 'random',
+  };
+}
+
+/** Chosen once per visit, so "random" doesn't change while you use the app. */
+const RANDOM_BACKGROUND = backgroundFiles.length ? backgroundFiles[Math.floor(Math.random() * backgroundFiles.length)] : null;
 
 const toMatchPlayers = (names: string[], roster: Map<string, Player>, allowed: ReadonlySet<string>, drop: number): MatchPlayer[] =>
   names.map((name) => ({
@@ -66,7 +82,9 @@ export function App() {
   const [selected, setSelected] = useState<Set<string>>(sel.players);
   const [ots, setOts] = useState<Set<string>>(sel.ots);
   const [games, setGames] = useState<number>(sel.games);
-  const [drop, setDrop] = useState<number>(initialDrop);
+  const [settings] = useState(initialSettings);
+  const [drop, setDrop] = useState<number>(settings.drop);
+  const [background, setBackground] = useState<string>(settings.background);
   const [teams, setTeams] = useState<Teams | null>(() => validTeams(load('teams'), NAMES));
   const [gameIndex, setGameIndex] = useState(0);
   const [busy, setBusy] = useState<'' | 'make' | 'shuffle'>('');
@@ -89,7 +107,8 @@ export function App() {
   }, []);
 
   useEffect(() => save('selection', { players: [...selected], ots: [...ots], games } satisfies SavedSelection), [selected, ots, games]);
-  useEffect(() => save('settings', { drop }), [drop]);
+  useEffect(() => save('settings', { drop, background } satisfies SavedSettings), [drop, background]);
+  const backdrop = background === 'none' ? null : background === 'random' ? RANDOM_BACKGROUND : background;
   useEffect(() => save('teams', teams ? { games: teams.games, players: teams.players, allowed: teams.allowed } : null), [teams]);
 
   const go = (s: Screen) => {
@@ -169,6 +188,7 @@ export function App() {
 
   return (
     <>
+      {backdrop && <Backdrop path={backdrop} />}
       <Header screen={screen} unlocked={unlocked} onLockClick={() => (unlocked ? lock() : setDialog(true))} />
       <main>
         {screen === 'tonight' && (
@@ -202,7 +222,7 @@ export function App() {
           />
         )}
         {screen === 'roster' && <RosterScreen players={PUBLIC} rated={rated} drop={drop} />}
-        {screen === 'settings' && <SettingsScreen players={PUBLIC} drop={drop} onDrop={setDrop} />}
+        {screen === 'settings' && <SettingsScreen players={PUBLIC} drop={drop} onDrop={setDrop} background={background} onBackground={setBackground} />}
       </main>
       <Footer />
       <UnlockDialog open={dialog} onClose={() => setDialog(false)} onUnlock={unlock} />

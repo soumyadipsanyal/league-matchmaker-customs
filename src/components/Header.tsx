@@ -20,8 +20,8 @@ function Padlock({ open }: { open: boolean }) {
 function Mark() {
   return (
     <svg className="mark" viewBox="0 0 32 32" aria-hidden="true">
-      <rect x="1" y="1" width="30" height="30" rx="8" fill="#1f5039" stroke="rgba(238,241,230,.35)" strokeWidth="1.5" />
-      <path d="M7 24 24 7" stroke="#cdbf93" strokeOpacity=".7" strokeWidth="3" strokeLinecap="round" />
+      <rect x="1" y="1" width="30" height="30" rx="8" fill="#0a1428" stroke="#c8aa6e" strokeWidth="1.5" />
+      <path d="M7 24 24 7" stroke="#c8aa6e" strokeOpacity=".75" strokeWidth="3" strokeLinecap="round" />
       <circle cx="11" cy="20" r="4.2" fill="#2c68c4" stroke="#9cc8ff" strokeWidth="1.5" />
       <circle cx="21" cy="11" r="4.2" fill="#c8363d" stroke="#ffb0b2" strokeWidth="1.5" />
     </svg>

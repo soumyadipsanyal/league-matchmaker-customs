@@ -94,6 +94,7 @@ Official icons are optional. Drop PNGs into `public/assets` with these exact nam
 - `public/assets/champions/<key>.png`: champion icons, using each one-trick's `key` (e.g. `MasterYi.png`).
 - `public/assets/roles/top.png`, `jungle.png`, `mid.png`, `adc.png`, `support.png`.
 - `public/assets/map/summoners-rift.png` (optional): replaces the drawn board. If the magnets don't sit on its lanes, nudge the positions in `src/board/slots.ts`.
+- `public/assets/backgrounds/` (optional): any JPG or PNG files, any names, shown as a darkened backdrop behind the page. By default a random one shows on each visit; **Settings → Background** lets you pick one or turn it off. Champion splash art from Riot's Data Dragon works well, e.g. `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Udyr_0.jpg` (change the champion key, and the number for other skins).
 
 ## How teams are made
 

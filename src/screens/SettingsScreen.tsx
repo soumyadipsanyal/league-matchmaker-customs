@@ -1,6 +1,6 @@
 import { AssetImg, RoleGlyph, monogram, useBrokenImages } from '../components/Icons.tsx';
 import { DEFAULT_STEP_DROP, STEP_DROP_MAX, STEP_DROP_MIN } from '../engine/constants.ts';
-import { assetState, imageSpecs } from '../lib/assets.ts';
+import { assetState, backgroundFiles, backgroundLabel, imageSpecs } from '../lib/assets.ts';
 import { fmt } from '../lib/format.ts';
 import { ROLES, ROLE_FILE } from '../lib/roles.ts';
 import type { PublicPlayer } from '../lib/roster.ts';
@@ -9,6 +9,9 @@ interface Props {
   players: PublicPlayer[];
   drop: number;
   onDrop: (d: number) => void;
+  /** 'random', 'none' or a background file path. */
+  background: string;
+  onBackground: (b: string) => void;
 }
 
 function Placeholder({ path }: { path: string }) {
@@ -25,7 +28,7 @@ function Placeholder({ path }: { path: string }) {
   return <span className="mapph" />;
 }
 
-export function SettingsScreen({ players, drop, onDrop }: Props) {
+export function SettingsScreen({ players, drop, onDrop, background, onBackground }: Props) {
   const broken = useBrokenImages();
   const pct = Math.round(drop * 100);
   const groups = imageSpecs(players);
@@ -62,6 +65,36 @@ export function SettingsScreen({ players, drop, onDrop }: Props) {
             </button>
           </div>
           <p className="note">Changing this re-rates everyone straight away, including teams already on the board. Press Make teams again to rebalance.</p>
+        </div>
+
+        <div className="card">
+          <h2>Background</h2>
+          <p className="sub">
+            Champion splash art behind the page, darkened so everything stays readable. Add JPG or PNG files to <code>public/assets/backgrounds</code>{' '}
+            (any file names).
+          </p>
+          {backgroundFiles.length === 0 ? (
+            <p className="note">No backgrounds added yet, so the page is plain navy.</p>
+          ) : (
+            <div className="bgpick" role="group" aria-label="Background">
+              <button type="button" className="bgtile" aria-pressed={background === 'random'} onClick={() => onBackground('random')}>
+                <span className="bgthumb word">Random</span>
+                <span>A different one each visit</span>
+              </button>
+              <button type="button" className="bgtile" aria-pressed={background === 'none'} onClick={() => onBackground('none')}>
+                <span className="bgthumb word">None</span>
+                <span>Plain navy</span>
+              </button>
+              {backgroundFiles.map((f) => (
+                <button key={f} type="button" className="bgtile" aria-pressed={background === f} onClick={() => onBackground(f)}>
+                  <span className="bgthumb">
+                    <AssetImg path={f} fallback={<span className="word">?</span>} />
+                  </span>
+                  <span>{backgroundLabel(f)}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="card">

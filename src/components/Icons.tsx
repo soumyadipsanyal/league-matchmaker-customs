@@ -71,6 +71,15 @@ export function AssetImg({ path, className, fallback, alt = '' }: { path: string
   );
 }
 
+/** Splash art fixed behind the whole page, darkened so text stays readable. */
+export function Backdrop({ path }: { path: string }) {
+  return (
+    <div className="backdrop" aria-hidden="true">
+      <AssetImg path={path} fallback={null} />
+    </div>
+  );
+}
+
 /** Role icon: the official one if supplied, else the glyph. Pass title="" for no tooltip. */
 export function RoleIcon({ role, className = 'gl', title }: { role: Role; className?: string; title?: string }) {
   return (
