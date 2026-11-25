@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import lockedRoster from './data/roster.locked.json';
 import { Footer } from './components/Footer.tsx';
 import { Header, SCREENS, type Screen } from './components/Header.tsx';
@@ -10,6 +10,7 @@ import type { MatchPlayer } from './engine/matchmaker.ts';
 import { slotsFor } from './engine/rating.ts';
 import { decryptJson } from './lib/lock.ts';
 import { mergeRoster, type LockedRosterFile, type Player, type SecretRoster } from './lib/roster.ts';
+import { unscrambleJson } from './lib/scramble.ts';
 import { load, save } from './lib/storage.ts';
 import { validTeams, type Teams } from './lib/teams.ts';
 import { RosterScreen } from './screens/RosterScreen.tsx';
@@ -20,6 +21,8 @@ import { TonightScreen } from './screens/TonightScreen.tsx';
 const LOCKED = lockedRoster as unknown as LockedRosterFile;
 const PUBLIC = LOCKED.players;
 const PUB_BY_NAME = new Map(PUBLIC.map((p) => [p.name, p]));
+/** Ratings for making teams: always available, only shown once unlocked. */
+const ROSTER = new Map(mergeRoster(PUBLIC, unscrambleJson<SecretRoster>(LOCKED.scrambled)).map((p) => [p.name, p]));
 const NAMES = new Set(PUBLIC.map((p) => p.name));
 const OT_IDS = new Set(PUBLIC.flatMap((p) => p.ot.map((o) => `${p.name}:${o.key}`)));
 const playerOf = (otId: string) => otId.slice(0, otId.lastIndexOf(':'));
@@ -49,15 +52,15 @@ function initialDrop(): number {
   return typeof d === 'number' && d >= STEP_DROP_MIN && d <= STEP_DROP_MAX ? d : DEFAULT_STEP_DROP;
 }
 
-const toMatchPlayers = (names: string[], rated: Map<string, Player>, allowed: ReadonlySet<string>, drop: number): MatchPlayer[] =>
+const toMatchPlayers = (names: string[], roster: Map<string, Player>, allowed: ReadonlySet<string>, drop: number): MatchPlayer[] =>
   names.map((name) => ({
     name,
-    slots: slotsFor(rated.get(name)!, allowed, drop).map((s) => ({ value: s.value, steps: s.steps, unlisted: s.unlisted, champ: s.champ })),
+    slots: slotsFor(roster.get(name)!, allowed, drop).map((s) => ({ value: s.value, steps: s.steps, unlisted: s.unlisted, champ: s.champ })),
   }));
 
 export function App() {
   const [screen, setScreen] = useState<Screen>(() => readScreen() ?? 'tonight');
-  const [roster, setRoster] = useState<Player[] | null>(null);
+  const [unlocked, setUnlocked] = useState(false);
   const [dialog, setDialog] = useState(false);
   const [sel] = useState(initialSelection);
   const [selected, setSelected] = useState<Set<string>>(sel.players);
@@ -70,7 +73,8 @@ export function App() {
   const [makeError, setMakeError] = useState('');
   const [notice, setNotice] = useState('');
 
-  const rated = useMemo(() => (roster ? new Map(roster.map((p) => [p.name, p])) : null), [roster]);
+  // Screens show numbers only when given this.
+  const rated = unlocked ? ROSTER : null;
 
   useEffect(() => {
     const onHash = () => {
@@ -94,28 +98,25 @@ export function App() {
   };
 
   const unlock = useCallback(async (password: string) => {
-    const secret = await decryptJson<SecretRoster>(LOCKED.lock, password);
-    setRoster(mergeRoster(PUBLIC, secret));
+    // Opening the password-locked copy proves the password; it holds the same ratings.
+    await decryptJson<SecretRoster>(LOCKED.lock, password);
+    setUnlocked(true);
     setDialog(false);
   }, []);
 
   const lock = () => {
-    setRoster(null);
+    setUnlocked(false);
     setNotice('');
   };
 
   async function make() {
-    if (!rated) {
-      setDialog(true);
-      return;
-    }
     const names = PUBLIC.filter((p) => selected.has(p.name)).map((p) => p.name);
     if (names.length < 10) return;
     const allowed = new Set([...ots].filter((id) => selected.has(playerOf(id))));
     setBusy('make');
     setMakeError('');
     try {
-      const res = await runMatch({ players: toMatchPlayers(names, rated, allowed, drop), games, mode: 'make' });
+      const res = await runMatch({ players: toMatchPlayers(names, ROSTER, allowed, drop), games, mode: 'make' });
       setTeams((t) => ({
         games: res.games.map((g) => ({ blue: g.blue, red: g.red, out: g.out })),
         players: names,
@@ -133,14 +134,14 @@ export function App() {
   }
 
   async function shuffle() {
-    if (!teams || !rated) return;
+    if (!teams) return;
     setBusy('shuffle');
     setNotice('');
     try {
       const allowed = new Set(teams.allowed);
       const seed = crypto.getRandomValues(new Uint32Array(1))[0];
       const res = await runMatch({
-        players: toMatchPlayers(teams.players, rated, allowed, drop),
+        players: toMatchPlayers(teams.players, ROSTER, allowed, drop),
         games: teams.games.length,
         mode: 'shuffle',
         seed,
@@ -168,7 +169,7 @@ export function App() {
 
   return (
     <>
-      <Header screen={screen} unlocked={Boolean(rated)} onLockClick={() => (rated ? lock() : setDialog(true))} />
+      <Header screen={screen} unlocked={unlocked} onLockClick={() => (unlocked ? lock() : setDialog(true))} />
       <main>
         {screen === 'tonight' && (
           <TonightScreen
@@ -185,7 +186,6 @@ export function App() {
             onClear={() => setSelected(new Set())}
             onGames={setGames}
             onMake={make}
-            onUnlock={() => setDialog(true)}
           />
         )}
         {screen === 'teams' && (
@@ -197,7 +197,6 @@ export function App() {
             gameIndex={teams ? Math.min(gameIndex, teams.games.length - 1) : 0}
             onGame={setGameIndex}
             onShuffle={shuffle}
-            onUnlock={() => setDialog(true)}
             busy={busy === 'shuffle'}
             notice={notice}
           />

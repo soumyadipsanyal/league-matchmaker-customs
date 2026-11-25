@@ -2,7 +2,7 @@
 
 A team balancer for our League of Legends 5v5 customs. Tick who's playing, pick 1–3 games, allow any one-tricks, press **Make teams**, and the teams slide onto a Summoner's Rift board you can screenshot or copy into the group chat.
 
-It's a static site (Vite + React + TypeScript) with no backend. The ratings ship encrypted and only unlock with the password.
+It's a static site (Vite + React + TypeScript) with no backend. Anyone with the link can make teams; the ratings only show after **Unlock** with the password.
 
 ## Run it
 
@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Open the address it prints (usually http://localhost:5173). Press **Unlock** in the header and enter the password to see ratings and make teams.
+Open the address it prints (usually http://localhost:5173). Anyone can make teams; press **Unlock** in the header and enter the password to see the ratings, totals and lane bars.
 
 ```powershell
 npm run build      # static site in dist/
@@ -40,7 +40,7 @@ After editing, run:
 npm run encrypt-roster
 ```
 
-It checks the file, asks for the password twice and writes `src/data/roster.locked.json`. Commit that file: it's the only roster the site uses, and it holds names, roles and champions in the clear, with all ratings encrypted (AES-GCM, key from the password via PBKDF2). `npm run build` stops with a reminder if the names, roles or one-tricks in `roster.private.json` no longer match the encrypted file.
+It checks the file, asks for the password twice and writes `src/data/roster.locked.json`. Commit that file: it's the only roster the site uses. It holds names, roles and champions in the clear, plus the ratings twice: once encrypted under the password (AES-GCM, key from the password via PBKDF2), which is what Unlock checks, and once scrambled, which is what lets anyone make teams. `npm run build` stops with a reminder if the names, roles or one-tricks in `roster.private.json` no longer match the encrypted file.
 
 ## Change the password
 
@@ -50,7 +50,7 @@ Run `npm run encrypt-roster` and type the new password. The old one stops workin
 $env:ROSTER_PASSWORD = 'your password'; npm run check-dist; Remove-Item Env:ROSTER_PASSWORD
 ```
 
-The lock is only as strong as the password: anyone can download the site and try guesses offline, so a short dictionary word can be cracked quickly. A passphrase of four or more random words keeps the ratings properly private.
+**How private are the ratings?** Hidden, not secret. Because anyone can make teams, the site has to carry a copy of the ratings the browser can use without the password. That copy is scrambled so the numbers aren't readable at a glance, but someone who digs into the site's code could unscramble them. The password decides whether the app shows the numbers. If you ever need them truly secret again, team-making would have to move behind the password or onto a small server.
 
 ## Deploy to GitHub Pages
 
@@ -78,11 +78,11 @@ npm run build
 npm run check-dist
 ```
 
-`check-dist` asks for the password, proves it opens the shipped roster, then searches every file in `dist/` for the password (any letter case) and for plaintext ratings, steps or one-trick ratings.
+`check-dist` asks for the password, proves it opens the shipped roster, then searches every file in `dist/` for the password (any letter case) and for plaintext ratings, steps or one-trick ratings, and checks both roster copies are there. It proves nothing is readable as-is; it can't make the scrambled copy secret.
 
 ## Tests
 
-`npm test` covers the rating maths, game scoring, the exact balancer (against brute force), the sit-out rotation rules, Shuffle, and the lock (right password decrypts, wrong one fails). Two parts need private data and skip themselves without it:
+`npm test` covers the rating maths, game scoring, the exact balancer (against brute force), the sit-out rotation rules, Shuffle, the lock (right password decrypts, wrong one fails) and the scrambled copy. Two parts need private data and skip themselves without it:
 
 - `tests/roster.private.test.ts` checks the rating maths on real players from the roster. It's gitignored because it spells out their ratings.
 - Opening the shipped roster with the real password runs when `ROSTER_PASSWORD` is set.

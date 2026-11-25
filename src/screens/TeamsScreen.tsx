@@ -14,7 +14,6 @@ interface Props {
   gameIndex: number;
   onGame: (i: number) => void;
   onShuffle: () => void;
-  onUnlock: () => void;
   busy: boolean;
   notice: string;
 }
@@ -43,7 +42,7 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export function TeamsScreen({ teams, pub, rated, drop, gameIndex, onGame, onShuffle, onUnlock, busy, notice }: Props) {
+export function TeamsScreen({ teams, pub, rated, drop, gameIndex, onGame, onShuffle, busy, notice }: Props) {
   const [copied, setCopied] = useState<'' | 'ok' | 'fail'>('');
   const game = teams?.games[Math.min(gameIndex, teams.games.length - 1)] ?? null;
   const view = game && rated ? gameView(game, rated, drop) : null;
@@ -97,15 +96,9 @@ export function TeamsScreen({ teams, pub, rated, drop, gameIndex, onGame, onShuf
                   <button type="button" className="btn" onClick={copy}>
                     {copied === 'ok' ? 'Copied' : copied === 'fail' ? "Couldn't copy" : 'Copy teams'}
                   </button>
-                  {unlocked ? (
-                    <button type="button" className="btn ghost" onClick={onShuffle} disabled={busy}>
-                      {busy ? 'Shuffling…' : 'Shuffle'}
-                    </button>
-                  ) : (
-                    <button type="button" className="btn ghost" onClick={onUnlock}>
-                      Unlock to shuffle
-                    </button>
-                  )}
+                  <button type="button" className="btn ghost" onClick={onShuffle} disabled={busy}>
+                    {busy ? 'Shuffling…' : 'Shuffle'}
+                  </button>
                 </div>
                 <p className="note" aria-live="polite">
                   {notice || 'Copy teams copies every game as plain text for the group chat, without ratings.'}

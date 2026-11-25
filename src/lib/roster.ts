@@ -1,5 +1,6 @@
 import { ROLES, isRole, type Role } from './roles.ts';
 import type { LockBox } from './lock.ts';
+import type { ScrambledBox } from './scramble.ts';
 
 /** One entry of roster.private.json, exactly as the owner edits it. */
 export interface PrivateRosterEntry {
@@ -45,7 +46,10 @@ export interface SecretRoster {
 export interface LockedRosterFile {
   v: 1;
   players: PublicPlayer[];
+  /** The ratings under the password: opening it is how Unlock checks the password. */
   lock: LockBox;
+  /** The same ratings, scrambled (not encrypted), so anyone can make teams. */
+  scrambled: ScrambledBox;
 }
 
 /** A player once the roster is unlocked. */

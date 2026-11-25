@@ -5,7 +5,11 @@
  *   1. the password does not appear anywhere (any letter case);
  *   2. no plaintext rating data: no rating fields, no steps-per-role maps, and
  *      none of the decrypted roster's own values in their original shape;
- *   3. the encrypted roster is in there, so the app can still unlock.
+ *   3. the locked and scrambled rosters are in there, so the app can unlock
+ *      and anyone can make teams.
+ *
+ * Note the scrambled copy is not encryption: someone who reads the site's code
+ * can unscramble it. This check only proves nothing is readable as-is.
  *
  * It asks for the password (or reads ROSTER_PASSWORD) and first proves that it
  * opens the shipped roster, so the search really is for the right password.
@@ -83,8 +87,8 @@ async function main() {
   }
 
   // 3. The encrypted roster made it in.
-  const shipped = texts.some((t) => t.text.includes(locked.lock.data));
-  if (!shipped) problems.push('The encrypted roster is not in the build, so the app could not unlock.');
+  if (!texts.some((t) => t.text.includes(locked.lock.data))) problems.push('The password-locked roster is not in the build, so Unlock could not work.');
+  if (!texts.some((t) => t.text.includes(locked.scrambled.data))) problems.push('The scrambled roster is not in the build, so teams could not be made.');
 
   console.log(`Checked ${files.length} files in dist/.`);
   if (problems.length) {
@@ -93,7 +97,8 @@ async function main() {
   }
   console.log('  ✓ The password does not appear anywhere (any letter case).');
   console.log(`  ✓ No plaintext ratings, steps or one-trick ratings (${patterns.length} patterns).`);
-  console.log('  ✓ The encrypted roster is present.');
+  console.log('  ✓ The password-locked and scrambled rosters are present.');
+  console.log('    (Scrambled is not encrypted: anyone who digs into the code could recover the ratings.)');
 }
 
 main().catch((e: Error) => {

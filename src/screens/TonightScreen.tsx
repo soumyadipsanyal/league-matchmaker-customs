@@ -18,19 +18,16 @@ interface Props {
   onClear: () => void;
   onGames: (g: number) => void;
   onMake: () => void;
-  onUnlock: () => void;
 }
 
 export function TonightScreen(props: Props) {
   const { players, rated, selected, ots, games, busy } = props;
   const count = players.filter((p) => selected.has(p.name)).length;
   const short = Math.max(0, 10 - count);
-  const unlocked = Boolean(rated);
   const allowedCount = players.reduce((n, p) => n + (selected.has(p.name) ? p.ot.filter((o) => ots.has(otId(p.name, o.key))).length : 0), 0);
 
   let msg = '';
   if (short > 0) msg = `Pick ${plural(short, 'more player')} to make teams.`;
-  else if (!unlocked) msg = 'Making teams uses the ratings, which are locked.';
   else if (count > 10) msg = `${plural(count - 10, 'player')} will sit out each game, in turn.`;
   else msg = 'Exactly ten: everyone plays every game.';
 
@@ -133,15 +130,9 @@ export function TonightScreen(props: Props) {
           <p className="ab-msg" aria-live="polite">
             {props.error || msg}
           </p>
-          {unlocked || short > 0 ? (
-            <button type="button" className="btn" onClick={props.onMake} disabled={short > 0 || busy}>
-              {busy ? 'Making teams…' : 'Make teams'}
-            </button>
-          ) : (
-            <button type="button" className="btn" onClick={props.onUnlock}>
-              Unlock to make teams
-            </button>
-          )}
+          <button type="button" className="btn" onClick={props.onMake} disabled={short > 0 || busy}>
+            {busy ? 'Making teams…' : 'Make teams'}
+          </button>
         </div>
       </div>
     </>

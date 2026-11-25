@@ -3,14 +3,16 @@
  *
  * Reads roster.private.json, asks for the password, and writes
  * src/data/roster.locked.json: names, roles played and one-trick champions in
- * the clear, and the ratings, steps per role and one-trick ratings encrypted
- * with AES-GCM under a PBKDF2-derived key.
+ * the clear; the ratings, steps per role and one-trick ratings encrypted with
+ * AES-GCM under a PBKDF2-derived key (Unlock checks the password against this);
+ * and the same ratings scrambled, so anyone can make teams without the password.
  *
  * Set ROSTER_PASSWORD to skip the prompt (for example in CI).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { decryptJson, encryptJson, PBKDF2_ITERATIONS } from '../src/lib/lock.ts';
+import { scrambleJson, unscrambleJson } from '../src/lib/scramble.ts';
 import { splitRoster, validateRoster, type LockedRosterFile, type PrivateRosterEntry, type SecretRoster } from '../src/lib/roster.ts';
 import { askPassword, closePrompt } from './lib/prompt.ts';
 import { LOCKED_ROSTER, PRIVATE_ROSTER, rel } from './lib/paths.ts';
@@ -54,11 +56,16 @@ async function main() {
   const check = await decryptJson<SecretRoster>(lock, password);
   if (JSON.stringify(check) !== JSON.stringify(secret)) throw new Error('Self-check failed: decrypted data does not match.');
 
-  const file: LockedRosterFile = { v: 1, players, lock };
+  const scrambled = scrambleJson(secret);
+  if (JSON.stringify(unscrambleJson(scrambled)) !== JSON.stringify(secret)) throw new Error('Self-check failed: unscrambled data does not match.');
+
+  const file: LockedRosterFile = { v: 1, players, lock, scrambled };
   fs.mkdirSync(path.dirname(LOCKED_ROSTER), { recursive: true });
   fs.writeFileSync(LOCKED_ROSTER, JSON.stringify(file, null, 2) + '\n');
   console.log('done.');
-  console.log(`Wrote ${rel(LOCKED_ROSTER)}: ${players.length} players, ratings encrypted (${PBKDF2_ITERATIONS.toLocaleString('en-GB')} PBKDF2 rounds).`);
+  console.log(`Wrote ${rel(LOCKED_ROSTER)}: ${players.length} players.`);
+  console.log(`  - ratings locked under the password (${PBKDF2_ITERATIONS.toLocaleString('en-GB')} PBKDF2 rounds): Unlock checks this`);
+  console.log('  - ratings scrambled for team-making: anyone can make teams, and someone who digs into the code could unscramble them');
 }
 
 main().catch((e: Error) => {

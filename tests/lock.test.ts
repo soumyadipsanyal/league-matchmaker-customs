@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { decryptJson, encryptJson, WrongPasswordError } from '../src/lib/lock.ts';
+import { scrambleJson, unscrambleJson } from '../src/lib/scramble.ts';
 import { mergeRoster, splitRoster, validateRoster, type LockedRosterFile, type PrivateRosterEntry, type SecretRoster } from '../src/lib/roster.ts';
 
 const LOCKED_PATH = new URL('../src/data/roster.locked.json', import.meta.url);
@@ -56,7 +57,23 @@ describe('password lock (AES-GCM, PBKDF2 key)', () => {
   });
 });
 
+describe('scrambled copy for team-making', () => {
+  it('round-trips without the password and is not readable as-is', () => {
+    const value = { players: [{ name: 'Ann', rating: 7.5, steps: { mid: 0 } }] };
+    const box = scrambleJson(value);
+    expect(unscrambleJson(box)).toEqual(value);
+    expect(atob(box.data)).not.toMatch(/rating|Ann|mid/);
+    expect(scrambleJson(value).data).not.toBe(box.data); // a fresh key each time
+  });
+});
+
 describe('the shipped roster (src/data/roster.locked.json)', () => {
+  it('has a scrambled copy anyone can use to make teams, matching the public names', () => {
+    const secret = unscrambleJson<SecretRoster>(locked.scrambled);
+    expect(secret.players.map((p) => p.name)).toEqual(locked.players.map((p) => p.name));
+    expect(atob(locked.scrambled.data)).not.toMatch(/rating|steps/);
+  });
+
   it('carries no ratings in the clear', () => {
     expect(JSON.stringify(locked.players)).not.toMatch(/rating|steps/i);
     expect(locked.lock).toMatchObject({ alg: 'AES-GCM', kdf: 'PBKDF2', hash: 'SHA-256' });
@@ -74,6 +91,7 @@ describe('the shipped roster (src/data/roster.locked.json)', () => {
       const entries = JSON.parse(fs.readFileSync(PRIVATE_PATH, 'utf8')) as PrivateRosterEntry[];
       const fresh = splitRoster(entries);
       expect(secret).toEqual(fresh.secret);
+      expect(unscrambleJson(locked.scrambled)).toEqual(fresh.secret);
       expect(locked.players).toEqual(fresh.players);
     }
   });

@@ -23,6 +23,9 @@ if (!fs.existsSync(LOCKED_ROSTER)) {
   fail(`${rel(LOCKED_ROSTER)} is missing. Run: npm run encrypt-roster`);
 }
 const locked = JSON.parse(fs.readFileSync(LOCKED_ROSTER, 'utf8')) as LockedRosterFile;
+if (!locked.scrambled) {
+  fail(`${rel(LOCKED_ROSTER)} is from an older version and can't be used to make teams without the password. Run: npm run encrypt-roster`);
+}
 
 if (!fs.existsSync(PRIVATE_ROSTER)) {
   console.log(`Roster: using ${rel(LOCKED_ROSTER)} (${locked.players.length} players). ${rel(PRIVATE_ROSTER)} not found, so skipping the freshness check.`);
