@@ -5,7 +5,7 @@ import { assetUrl, MAP_PATH } from '../lib/assets.ts';
 import { fmt, fmt1 } from '../lib/format.ts';
 import { ROLES, ROLE_NAME, type Role } from '../lib/roles.ts';
 import type { GameView, Placement, TeamsGame } from '../lib/teams.ts';
-import { AssetImg, ChampIcon, RoleIcon } from './Icons.tsx';
+import { AssetImg, ChampIcon, RoleIcon, useBrokenImages } from './Icons.tsx';
 
 const ORDER: [Side, Role][] = ROLES.flatMap((r) => [
   ['blue', r],
@@ -42,7 +42,10 @@ export function RiftBoard({ game, view, animKey, champName, label }: Props) {
     setPhase('out');
   }, [phase]);
 
-  const mapUrl = assetUrl(MAP_PATH);
+  const broken = useBrokenImages();
+  const mapUrl = broken.has(MAP_PATH) ? null : assetUrl(MAP_PATH);
+  // The map picture and the drawn board have their lanes in different places.
+  const layout = mapUrl ? BOARD.image : BOARD.drawn;
 
   return (
     <div ref={ref} className={`rift${out ? ' shown' : ''}`} role="img" aria-label={label}>
@@ -57,7 +60,7 @@ export function RiftBoard({ game, view, animKey, champName, label }: Props) {
       </div>
       <div aria-hidden="true">
         {ORDER.map(([s, r]) => (
-          <div key={`slot-${s}-${r}`} className={`slot ${s}`} style={{ left: `${BOARD.slots[s][r].x}%`, top: `${BOARD.slots[s][r].y}%` }}>
+          <div key={`slot-${s}-${r}`} className={`slot ${s}`} style={{ left: `${layout.slots[s][r].x}%`, top: `${layout.slots[s][r].y}%` }}>
             <RoleIcon role={r} />
           </div>
         ))}
@@ -68,8 +71,8 @@ export function RiftBoard({ game, view, animKey, champName, label }: Props) {
             const k = ROLES.indexOf(r);
             const p = (s === 'blue' ? game.blue : game.red)[k];
             const slot = view ? (s === 'blue' ? view.blue : view.red)[k] : null;
-            const pos = out ? BOARD.slots[s][r] : BOARD.home[s];
-            const cfg = BOARD.slots[s][r];
+            const pos = out ? layout.slots[s][r] : layout.home[s];
+            const cfg = layout.slots[s][r];
             const champ = p.champ ? champName(p) : null;
             return (
               <div
