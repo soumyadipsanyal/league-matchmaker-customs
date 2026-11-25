@@ -1,0 +1,212 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import lockedRoster from './data/roster.locked.json';
+import { Footer } from './components/Footer.tsx';
+import { Header, SCREENS, type Screen } from './components/Header.tsx';
+import { UnlockDialog } from './components/UnlockDialog.tsx';
+import { runMatch } from './engine/client.ts';
+import { DEFAULT_STEP_DROP, STEP_DROP_MAX, STEP_DROP_MIN } from './engine/constants.ts';
+import { lineupKey } from './engine/lineup.ts';
+import type { MatchPlayer } from './engine/matchmaker.ts';
+import { slotsFor } from './engine/rating.ts';
+import { decryptJson } from './lib/lock.ts';
+import { mergeRoster, type LockedRosterFile, type Player, type SecretRoster } from './lib/roster.ts';
+import { load, save } from './lib/storage.ts';
+import { validTeams, type Teams } from './lib/teams.ts';
+import { RosterScreen } from './screens/RosterScreen.tsx';
+import { SettingsScreen } from './screens/SettingsScreen.tsx';
+import { TeamsScreen } from './screens/TeamsScreen.tsx';
+import { TonightScreen } from './screens/TonightScreen.tsx';
+
+const LOCKED = lockedRoster as unknown as LockedRosterFile;
+const PUBLIC = LOCKED.players;
+const PUB_BY_NAME = new Map(PUBLIC.map((p) => [p.name, p]));
+const NAMES = new Set(PUBLIC.map((p) => p.name));
+const OT_IDS = new Set(PUBLIC.flatMap((p) => p.ot.map((o) => `${p.name}:${o.key}`)));
+const playerOf = (otId: string) => otId.slice(0, otId.lastIndexOf(':'));
+
+interface SavedSelection {
+  players: string[];
+  ots: string[];
+  games: number;
+}
+
+function readScreen(): Screen | null {
+  const h = window.location.hash.replace(/^#\/?/, '');
+  return SCREENS.some((s) => s.id === h) ? (h as Screen) : null;
+}
+
+function initialSelection() {
+  const s = load<SavedSelection>('selection');
+  return {
+    players: new Set((s?.players ?? []).filter((n) => NAMES.has(n))),
+    ots: new Set((s?.ots ?? []).filter((id) => OT_IDS.has(id))),
+    games: s && [1, 2, 3].includes(s.games) ? s.games : 3,
+  };
+}
+
+function initialDrop(): number {
+  const d = load<{ drop: number }>('settings')?.drop;
+  return typeof d === 'number' && d >= STEP_DROP_MIN && d <= STEP_DROP_MAX ? d : DEFAULT_STEP_DROP;
+}
+
+const toMatchPlayers = (names: string[], rated: Map<string, Player>, allowed: ReadonlySet<string>, drop: number): MatchPlayer[] =>
+  names.map((name) => ({
+    name,
+    slots: slotsFor(rated.get(name)!, allowed, drop).map((s) => ({ value: s.value, steps: s.steps, unlisted: s.unlisted, champ: s.champ })),
+  }));
+
+export function App() {
+  const [screen, setScreen] = useState<Screen>(() => readScreen() ?? 'tonight');
+  const [roster, setRoster] = useState<Player[] | null>(null);
+  const [dialog, setDialog] = useState(false);
+  const [sel] = useState(initialSelection);
+  const [selected, setSelected] = useState<Set<string>>(sel.players);
+  const [ots, setOts] = useState<Set<string>>(sel.ots);
+  const [games, setGames] = useState<number>(sel.games);
+  const [drop, setDrop] = useState<number>(initialDrop);
+  const [teams, setTeams] = useState<Teams | null>(() => validTeams(load('teams'), NAMES));
+  const [gameIndex, setGameIndex] = useState(0);
+  const [busy, setBusy] = useState<'' | 'make' | 'shuffle'>('');
+  const [makeError, setMakeError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const rated = useMemo(() => (roster ? new Map(roster.map((p) => [p.name, p])) : null), [roster]);
+
+  useEffect(() => {
+    const onHash = () => {
+      const s = readScreen();
+      if (s) {
+        setScreen(s);
+        window.scrollTo({ top: 0 });
+      }
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  useEffect(() => save('selection', { players: [...selected], ots: [...ots], games } satisfies SavedSelection), [selected, ots, games]);
+  useEffect(() => save('settings', { drop }), [drop]);
+  useEffect(() => save('teams', teams ? { games: teams.games, players: teams.players, allowed: teams.allowed } : null), [teams]);
+
+  const go = (s: Screen) => {
+    if (window.location.hash !== `#${s}`) window.location.hash = s;
+    setScreen(s);
+  };
+
+  const unlock = useCallback(async (password: string) => {
+    const secret = await decryptJson<SecretRoster>(LOCKED.lock, password);
+    setRoster(mergeRoster(PUBLIC, secret));
+    setDialog(false);
+  }, []);
+
+  const lock = () => {
+    setRoster(null);
+    setNotice('');
+  };
+
+  async function make() {
+    if (!rated) {
+      setDialog(true);
+      return;
+    }
+    const names = PUBLIC.filter((p) => selected.has(p.name)).map((p) => p.name);
+    if (names.length < 10) return;
+    const allowed = new Set([...ots].filter((id) => selected.has(playerOf(id))));
+    setBusy('make');
+    setMakeError('');
+    try {
+      const res = await runMatch({ players: toMatchPlayers(names, rated, allowed, drop), games, mode: 'make' });
+      setTeams((t) => ({
+        games: res.games.map((g) => ({ blue: g.blue, red: g.red, out: g.out })),
+        players: names,
+        allowed: [...allowed],
+        seq: (t?.seq ?? 0) + 1,
+      }));
+      setGameIndex(0);
+      setNotice('');
+      go('teams');
+    } catch (e) {
+      setMakeError(`Couldn't make teams: ${(e as Error).message}`);
+    } finally {
+      setBusy('');
+    }
+  }
+
+  async function shuffle() {
+    if (!teams || !rated) return;
+    setBusy('shuffle');
+    setNotice('');
+    try {
+      const allowed = new Set(teams.allowed);
+      const seed = crypto.getRandomValues(new Uint32Array(1))[0];
+      const res = await runMatch({
+        players: toMatchPlayers(teams.players, rated, allowed, drop),
+        games: teams.games.length,
+        mode: 'shuffle',
+        seed,
+        avoid: teams.games.map(lineupKey),
+      });
+      if (!res.changed) {
+        setNotice('No other lineup is close enough to the fairest one, so these teams stay.');
+      } else {
+        setTeams((t) => (t ? { ...t, games: res.games.map((g) => ({ blue: g.blue, red: g.red, out: g.out })), seq: t.seq + 1 } : t));
+        setNotice('Shuffled. Every game is still within 0.5 of its fairest lineup.');
+      }
+    } catch (e) {
+      setNotice(`Couldn't shuffle: ${(e as Error).message}`);
+    } finally {
+      setBusy('');
+    }
+  }
+
+  const toggle = (set: Set<string>, item: string) => {
+    const next = new Set(set);
+    if (next.has(item)) next.delete(item);
+    else next.add(item);
+    return next;
+  };
+
+  return (
+    <>
+      <Header screen={screen} unlocked={Boolean(rated)} onLockClick={() => (rated ? lock() : setDialog(true))} />
+      <main>
+        {screen === 'tonight' && (
+          <TonightScreen
+            players={PUBLIC}
+            rated={rated}
+            selected={selected}
+            ots={ots}
+            games={games}
+            busy={busy === 'make'}
+            error={makeError}
+            onTogglePlayer={(n) => setSelected((s) => toggle(s, n))}
+            onToggleOt={(id) => setOts((s) => toggle(s, id))}
+            onSelectAll={() => setSelected(new Set(NAMES))}
+            onClear={() => setSelected(new Set())}
+            onGames={setGames}
+            onMake={make}
+            onUnlock={() => setDialog(true)}
+          />
+        )}
+        {screen === 'teams' && (
+          <TeamsScreen
+            teams={teams}
+            pub={PUB_BY_NAME}
+            rated={rated}
+            drop={drop}
+            gameIndex={teams ? Math.min(gameIndex, teams.games.length - 1) : 0}
+            onGame={setGameIndex}
+            onShuffle={shuffle}
+            onUnlock={() => setDialog(true)}
+            busy={busy === 'shuffle'}
+            notice={notice}
+          />
+        )}
+        {screen === 'roster' && <RosterScreen players={PUBLIC} rated={rated} drop={drop} />}
+        {screen === 'settings' && <SettingsScreen players={PUBLIC} drop={drop} onDrop={setDrop} />}
+      </main>
+      <Footer />
+      <UnlockDialog open={dialog} onClose={() => setDialog(false)} onUnlock={unlock} />
+    </>
+  );
+}

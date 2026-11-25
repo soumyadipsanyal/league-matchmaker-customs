@@ -1,0 +1,33 @@
+{
+  "name": "thursday-customs",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Team balancer for League of Legends 5v5 customs.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "tsx scripts/check-roster-fresh.ts",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "encrypt-roster": "tsx scripts/encrypt-roster.ts",
+    "check-dist": "tsx scripts/check-dist.ts",
+    "verify": "npm run build && npm test && npm run check-dist"
+  },
+  "dependencies": {
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/big-shoulders-display": "^5.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.10",
+    "@types/react": "^19.3.3",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.2"
+  }
+}

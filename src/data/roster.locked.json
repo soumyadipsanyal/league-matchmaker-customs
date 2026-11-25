@@ -1,0 +1,300 @@
+{
+  "v": 1,
+  "players": [
+    {
+      "name": "Envy",
+      "roles": [
+        "top",
+        "jg",
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "mid"
+      ],
+      "ot": []
+    },
+    {
+      "name": "Alif",
+      "roles": [
+        "sp"
+      ],
+      "mains": [
+        "sp"
+      ],
+      "ot": [
+        {
+          "champ": "Swain",
+          "key": "Swain",
+          "role": "sp"
+        }
+      ]
+    },
+    {
+      "name": "Swoad",
+      "roles": [
+        "top",
+        "jg",
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "sp"
+      ],
+      "ot": []
+    },
+    {
+      "name": "Faiyaz",
+      "roles": [
+        "top",
+        "jg",
+        "mid",
+        "sp"
+      ],
+      "mains": [
+        "jg"
+      ],
+      "ot": []
+    },
+    {
+      "name": "Shafkat",
+      "roles": [
+        "top",
+        "jg",
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "jg"
+      ],
+      "ot": [
+        {
+          "champ": "Master Yi",
+          "key": "MasterYi",
+          "role": "jg"
+        }
+      ]
+    },
+    {
+      "name": "Siv",
+      "roles": [
+        "top",
+        "jg",
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "sp"
+      ],
+      "ot": [
+        {
+          "champ": "Rell",
+          "key": "Rell",
+          "role": "sp"
+        }
+      ]
+    },
+    {
+      "name": "Subham",
+      "roles": [
+        "top",
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "top",
+        "mid"
+      ],
+      "ot": [
+        {
+          "champ": "Sett",
+          "key": "Sett",
+          "role": "top"
+        },
+        {
+          "champ": "Viktor",
+          "key": "Viktor",
+          "role": "mid"
+        }
+      ]
+    },
+    {
+      "name": "Shabab",
+      "roles": [
+        "top",
+        "jg",
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "sp"
+      ],
+      "ot": []
+    },
+    {
+      "name": "Forkan",
+      "roles": [
+        "top",
+        "jg"
+      ],
+      "mains": [
+        "top"
+      ],
+      "ot": [
+        {
+          "champ": "Darius",
+          "key": "Darius",
+          "role": "top"
+        }
+      ]
+    },
+    {
+      "name": "Azwad",
+      "roles": [
+        "top",
+        "jg",
+        "mid",
+        "adc"
+      ],
+      "mains": [
+        "jg"
+      ],
+      "ot": []
+    },
+    {
+      "name": "Dreek",
+      "roles": [
+        "top",
+        "jg",
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "top",
+        "adc"
+      ],
+      "ot": [
+        {
+          "champ": "Shen",
+          "key": "Shen",
+          "role": "top"
+        }
+      ]
+    },
+    {
+      "name": "Taha",
+      "roles": [
+        "jg",
+        "mid"
+      ],
+      "mains": [
+        "mid"
+      ],
+      "ot": []
+    },
+    {
+      "name": "Ere",
+      "roles": [
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "sp"
+      ],
+      "ot": []
+    },
+    {
+      "name": "Shafi",
+      "roles": [],
+      "mains": [],
+      "ot": []
+    },
+    {
+      "name": "Ridwan",
+      "roles": [
+        "top",
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "mid"
+      ],
+      "ot": [
+        {
+          "champ": "Xerath",
+          "key": "Xerath",
+          "role": "mid"
+        }
+      ]
+    },
+    {
+      "name": "Nabit",
+      "roles": [
+        "top",
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "adc"
+      ],
+      "ot": []
+    },
+    {
+      "name": "Darky",
+      "roles": [
+        "top",
+        "jg",
+        "mid",
+        "sp"
+      ],
+      "mains": [
+        "jg"
+      ],
+      "ot": [
+        {
+          "champ": "Udyr",
+          "key": "Udyr",
+          "role": "jg"
+        }
+      ]
+    },
+    {
+      "name": "Farsh",
+      "roles": [
+        "mid",
+        "adc",
+        "sp"
+      ],
+      "mains": [
+        "adc",
+        "sp"
+      ],
+      "ot": [
+        {
+          "champ": "Jhin",
+          "key": "Jhin",
+          "role": "adc"
+        }
+      ]
+    }
+  ],
+  "lock": {
+    "alg": "AES-GCM",
+    "kdf": "PBKDF2",
+    "hash": "SHA-256",
+    "iterations": 600000,
+    "salt": "cIN4Pbd5Z7ZWk8UfJf496g==",
+    "iv": "JASE8QiaDO48+rLC",
+    "data": "uLyY2X8jENmbjxZQOIFByZbMIpYVLXEe8yklA9DYCbnQhXXUlCCW+phwfjT5iZrIt5p2AyJjw3l02wdZ5v3ujql+1qm2W7hFk9GA2SRkeG/brRaK51K0pgPuvFQq9Kze1E2fiy/YJeAFZ6Mq56EcMPjXb7vwZSp9Fwumf++KcVjauQbdHI95/4JQUhIx2jCEnQOn1bwRnolQ43rg3gVVgJHq26V37j2Mi/Eiu7LoxtplqTSiWArIPEj2k5zddq310RtUWgVLsz0g+OhpaYj2PBYjdlsr+s7NU6mRpHmQG80SfIlpobYqLAoXFOqeo2SMnsyoie7F0n1W5MN84l3s7CwD48plWivp5Myz6acEkjeJ5QTtI+fHICIZYghxYW/J+Bj0900F5Vs4VCoSyDesjyIL8mOdAsUEThvRsYAhPnezcmF41O8G/iINLFPgXYot36fqU+ghbKfzbs745cS3b+Jp0QpZpUM/qn7EToyBUY8CupEYq8fkFY8spG+ghXtEMOO6HI9RS+IIB2qW1afRt4kU9xRZpqqi+iPp1dD04ow0YZoFMhs76VZyMtl9+QiNVJM0KobkhS2T0GJ6Px2wTICzah4dV687PCF2r5Vyu9Bhlma4DbZcLvOycx3NENS5z+c1NZxQZFoZCacJiruf/3h899tpkeVlzfi7iiYNpsBLcOFiQJCFLyyci9I+msTE3X2dQlf98AYEEba0mPR8sBPGbPMPs2WJXeodd2AaSDihaE57Ua97OCQoPb2gUKWR7Gu87r2kqd/oa7jJ7Dtix7RGH6T+Shmdw7RSm/OlUs9apbSClx59bgSFki6Lwl52+nb/PQ5vf3+XI0wK7uiBs0IPnXCDxNK7F13FaG3RJg5673EzDqKk3HQeNJTkgvMs0PJ0wuVaRm9FfxAmlltIx7kdK7U6IBZmNb0b3k+ZNciFO20cowaJoDueEFzzP4G6O9R7l9ivmdigzpGqcUQ2Zv8+7lu9ziXTGUrwSvE9b7YYIDu0k7Dx7hxDcxVBVO0tLEKBq97yUhmbAsbRxKb+K4YkkbmvMcEBOe3xexzUD1IdwhM3hetw7WhPmW0Uce9fQjgoRx31g5bBaHw6JP3GNSilNF19NTl67aDifp8Nky74z6BkY7M3NNk14gFoiWTzW/2wvIi0UL/fF5x1wNbKGxJJDUk0Q6phQn10CuMgpKhPUWs0SJF4PNrJZIkQqMzhCnk8ro5pqkf8qgaRsmeZAo07K727UNiGq0l7E32DSUZrmzunhnq2hV+GilulAt3pj1x2Yse6jNYwwsFFiELyyrSjUWHNVyyTYh+2TgoghdgCkl5UsR3RUj3qQlFmC+MlLm9tbTUfwKnJ+vluSLBv+tYnwzX4ZUP7t6rNdeS6EUdwSTAM/DY7zQoVz9IPOfH3UvqoyGSON2T7JBN7ln5mkUMCpc1T6aFDrehQ1MVc/Wvjka8RPR1CwART9w54Msg/viKsrvVAu5KyGgO+RNbcoLUHLjAWcuP6emXKydJu7iyXvFF8Fzu8CAvgHBe4aRKXCWPdLkeEm0f8hi7hZ/kHd0W8mKAeKXPIrkeJYqTPf78A2J31MVIiXyRGxNbHQ/kjeeT6rU7dOLXKVDurpgGoSfvwpbxpdi4r2oH7d+bpBVhMwDpnGyACmpxNhY59pYziDIpeWCjGmjjSk5CIe9z3M0MY5+qsfkCL3SAYOccLCndxbzVgSaaBzksQMsTpTXZgj/cdavxUa21b8hGfr8FKlulPl1ORm/RIMJ1SpHZYHC6+mjk45ZN1L5sWhIObZmWAuqw8JyCqTcLVoLxqr0ar+roFFTk+nakLtb5VNgWbK68n9LHCTlBZBlBM/oumCAGvkSSN+UDVRTfd2yeaitch2VdtkrBH/GUgJjtykUiqmpd261EVY6ULF+zG2psuOQbME2hozDjL6DCuA+5lYUmZI6CNv3AE+FPeAStC8zBKckHqgdO9Tk58K/kQB25ursOGC6n9ffMEU80J4VHNTkpxUazjxLHFJRncQ5an5abFzjo0+BxW8tLBThBGZZN+2rdJLnDtQ2trw9OeAgDWitnBSwye+P+9OX9wF/r86ECxj+WF1K8bQ+GOFKjnFS3c/vVEtGdnqum9f9gEIT97mW0FhnpiAYaBS7bs59vC4M6LlRuEGOj4MVSannfYMLiOG8QTcWxEgVqe0RT8rrgt7Kh3Ww=="
+  }
+}

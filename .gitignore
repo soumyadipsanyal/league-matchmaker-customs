@@ -1,0 +1,13 @@
+# Private: these hold the ratings and/or the password. Never commit them.
+roster.private.json
+claude-code-prompt.md
+reference-page.html
+# Tests that check real players' ratings read roster.private.json and spell out
+# some of those ratings, so they stay local too.
+tests/*.private.test.ts
+
+node_modules
+dist
+*.local
+*.log
+.DS_Store
