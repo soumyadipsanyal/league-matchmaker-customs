@@ -53,6 +53,13 @@ export function TonightScreen(props: Props) {
               </button>
             </div>
           </div>
+          <p className="rolesnote">
+            <svg className="gl" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 11v6M12 7.5v.5" />
+            </svg>
+            Only main roles are shown, but all players are considered for secondary roles as well.
+          </p>
           <ul className="pgrid">
             {players.map((p) => {
               const on = selected.has(p.name);

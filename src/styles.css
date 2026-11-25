@@ -92,6 +92,29 @@ h1,
 }
 main {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+/* The screen's content takes up any spare height, so the Tonight games bar
+   sits directly on top of the footer instead of floating above a gap. */
+main > .band {
+  flex: 1 0 auto;
+}
+.rolesnote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 12px;
+  font-size: 14px;
+  color: #cfc6b3;
+  text-shadow:
+    0 1px 3px rgba(1, 10, 19, 0.95),
+    0 0 14px rgba(1, 10, 19, 0.9);
+}
+.rolesnote .gl {
+  width: 18px;
+  height: 18px;
+  color: var(--sand);
 }
 h1,
 h2,
