@@ -122,6 +122,7 @@ The **Stats** tab shows gol.gg-style player and champion tables (games, win rate
 - An allowed one-trick counts at its rating (or the role rating if higher) when the player lands in that role.
 - Each game scores `4 × team gap + biggest lane gap + 0.4 × average lane gap + 0.6 × steps off main + 10 × unlisted roles` (bot lane counts as a duo), and the lowest wins. Each ten is solved exactly. With more than ten, sit-outs rotate (nobody sits twice before everyone has sat once, and whoever sat out plays next); up to 14 players every schedule is checked, beyond that a time-boxed search runs in a Web Worker.
 - **Shuffle** picks another lineup within 0.5 of the best.
+- **Adjust for tonight** (under the player list) lowers a player's overall skill by up to 50% for tonight's teams only, e.g. if someone's ill or on a borrowed laptop. Every role and one-trick drops by that much; saved ratings don't change. The teams remember the adjustments they were made with, and a small "−20%" tag shows next to that player.
 
 ---
 

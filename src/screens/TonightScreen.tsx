@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { ADJUST_MAX, ADJUST_STEP, type Adjustments } from '../lib/adjust.ts';
 import { fmt, plural } from '../lib/format.ts';
 import { ROLE_NAME } from '../lib/roles.ts';
 import { otId, type Player, type PublicPlayer } from '../lib/roster.ts';
@@ -17,11 +19,18 @@ interface Props {
   onSelectAll: () => void;
   onClear: () => void;
   onGames: (g: number) => void;
+  /** Tonight's adjustments: percentage lower, by player. */
+  adjust: Adjustments;
+  onAdjust: (name: string, pct: number) => void;
+  onResetAdjust: () => void;
   onMake: () => void;
 }
 
 export function TonightScreen(props: Props) {
-  const { players, rated, selected, ots, games, busy } = props;
+  const { players, rated, selected, ots, games, busy, adjust } = props;
+  const [adjOpen, setAdjOpen] = useState(false);
+  const inTonight = players.filter((p) => selected.has(p.name));
+  const adjusted = inTonight.filter((p) => (adjust[p.name] ?? 0) > 0);
   const count = players.filter((p) => selected.has(p.name)).length;
   const short = Math.max(0, 10 - count);
   const allowedCount = players.reduce((n, p) => n + (selected.has(p.name) ? p.ot.filter((o) => ots.has(otId(p.name, o.key))).length : 0), 0);
@@ -94,6 +103,11 @@ export function TonightScreen(props: Props) {
                         )}
                       </span>
                     </span>
+                    {on && (adjust[p.name] ?? 0) > 0 && (
+                      <span className="adjtag" title={`${adjust[p.name]}% lower tonight`}>
+                        −{adjust[p.name]}%
+                      </span>
+                    )}
                     {r && <span className="prate">{fmt(r.rating)}</span>}
                   </button>
                   {p.ot.map((o) => {
@@ -120,6 +134,63 @@ export function TonightScreen(props: Props) {
               );
             })}
           </ul>
+          <details className="night adjust" open={adjOpen} onToggle={(e) => setAdjOpen(e.currentTarget.open)}>
+            <summary>
+              <span className="nt">Adjust for tonight</span>
+              <span className="nmeta">{adjusted.length ? `${plural(adjusted.length, 'player')} lowered` : 'Nobody adjusted'}</span>
+              <svg className="gl chev" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            {adjOpen && (
+              <div className="nbody">
+                <p className="note">
+                  Someone off their game tonight? Lower their overall skill for tonight's teams only: every role and one-trick drops by that much. Saved
+                  ratings don't change. Takes effect when you press Make teams.
+                </p>
+                {inTonight.length === 0 ? (
+                  <p className="note">Select who's playing first.</p>
+                ) : (
+                  <ul className="adjlist">
+                    {inTonight.map((p) => {
+                      const pct = adjust[p.name] ?? 0;
+                      const r = rated?.get(p.name);
+                      return (
+                        <li key={p.name} className={pct > 0 ? 'on' : undefined}>
+                          <label htmlFor={`adj-${p.name}`} className="adjname">
+                            {p.name}
+                          </label>
+                          <input
+                            id={`adj-${p.name}`}
+                            type="range"
+                            min={0}
+                            max={ADJUST_MAX}
+                            step={ADJUST_STEP}
+                            value={pct}
+                            onChange={(e) => props.onAdjust(p.name, Number(e.target.value))}
+                            aria-valuetext={pct ? `${pct}% lower tonight` : 'Normal'}
+                          />
+                          <output htmlFor={`adj-${p.name}`} className="adjval">
+                            {pct ? `−${pct}%` : 'Normal'}
+                          </output>
+                          {r && pct > 0 && (
+                            <small className="adjnum">
+                              {fmt(r.rating)} → {fmt(r.rating * (1 - pct / 100))}
+                            </small>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {adjusted.length > 0 && (
+                  <button type="button" className="btn ghost sm" onClick={props.onResetAdjust}>
+                    Reset everyone to normal
+                  </button>
+                )}
+              </div>
+            )}
+          </details>
         </div>
       </section>
       <div className="actionbar">

@@ -4,6 +4,7 @@ import { placedSlot, type Slot } from '../engine/rating.ts';
 import { scoreLineup, type GameNumbers } from '../engine/score.ts';
 import type { Placement } from '../engine/lineup.ts';
 import { andList, plural } from './format.ts';
+import { adjustFactor, adjustSlot, cleanAdjustments, type Adjustments } from './adjust.ts';
 
 export type { Placement };
 
@@ -22,6 +23,8 @@ export interface Teams {
   players: string[];
   /** One-tricks allowed when the teams were made. */
   allowed: string[];
+  /** Tonight's adjustments the teams were made with (percentage lower, by player). */
+  adjust: Adjustments;
   /** Bumped on every make/shuffle, to replay the board animation. */
   seq: number;
 }
@@ -33,10 +36,10 @@ export interface GameView {
 }
 
 /** Works out every number for a game from the unlocked roster. */
-export function gameView(g: TeamsGame, byName: Map<string, Player>, drop: number): GameView | null {
+export function gameView(g: TeamsGame, byName: Map<string, Player>, drop: number, adjust: Adjustments = {}): GameView | null {
   const slot = (p: Placement) => {
     const pl = byName.get(p.name);
-    return pl ? placedSlot(pl, p.role, p.champ, drop) : null;
+    return pl ? adjustSlot(placedSlot(pl, p.role, p.champ, drop), adjustFactor(adjust, p.name)) : null;
   };
   const blue = g.blue.map(slot);
   const red = g.red.map(slot);
@@ -77,5 +80,11 @@ export function validTeams(x: unknown, names: Set<string>): Teams | null {
     if (!okSide(g.blue) || !okSide(g.red) || !Array.isArray(g.out) || !g.out.every((n) => names.has(n))) return null;
   }
   if (!t.players.every((n) => names.has(n))) return null;
-  return { games: t.games, players: t.players, allowed: t.allowed.filter((a) => typeof a === 'string'), seq: 0 };
+  return {
+    games: t.games,
+    players: t.players,
+    allowed: t.allowed.filter((a) => typeof a === 'string'),
+    adjust: cleanAdjustments(t.adjust, names, t.players),
+    seq: 0,
+  };
 }

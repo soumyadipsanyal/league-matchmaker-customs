@@ -45,7 +45,7 @@ async function copyText(text: string): Promise<boolean> {
 export function TeamsScreen({ teams, pub, rated, drop, gameIndex, onGame, onShuffle, busy, notice }: Props) {
   const [copied, setCopied] = useState<'' | 'ok' | 'fail'>('');
   const game = teams?.games[Math.min(gameIndex, teams.games.length - 1)] ?? null;
-  const view = game && rated ? gameView(game, rated, drop) : null;
+  const view = game && rated ? gameView(game, rated, drop, teams?.adjust) : null;
   const name = (p: Placement) => (p.champ ? champName(pub, p.name, p.champ) : '');
   const unlocked = Boolean(rated);
 
@@ -91,7 +91,7 @@ export function TeamsScreen({ teams, pub, rated, drop, gameIndex, onGame, onShuf
                     </div>
                   </div>
                 </div>
-                <FaceOff game={game} view={view} pub={pub} champName={name} />
+                <FaceOff game={game} view={view} pub={pub} champName={name} adjust={teams.adjust} />
                 <div className="act">
                   <button type="button" className="btn" onClick={copy}>
                     {copied === 'ok' ? 'Copied' : copied === 'fail' ? "Couldn't copy" : 'Copy teams'}

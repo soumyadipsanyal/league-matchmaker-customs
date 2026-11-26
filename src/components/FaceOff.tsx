@@ -4,12 +4,15 @@ import type { PublicPlayer } from '../lib/roster.ts';
 import type { GameView, Placement, TeamsGame } from '../lib/teams.ts';
 import type { Slot } from '../engine/rating.ts';
 import { ChampIcon, RoleIcon } from './Icons.tsx';
+import type { Adjustments } from '../lib/adjust.ts';
 
 interface Props {
   game: TeamsGame;
   view: GameView | null;
   pub: Map<string, PublicPlayer>;
   champName: (p: Placement) => string;
+  /** Tonight's adjustments the teams were made with. */
+  adjust?: Adjustments;
 }
 
 type Flag = { kind: 'champ' | 'unlisted' | 'notset' | 'off'; text: string };
@@ -26,11 +29,18 @@ function flagFor(p: Placement, slot: Slot | null, pub: PublicPlayer | undefined,
   return null;
 }
 
-function Who({ p, slot, pub, champ, side }: { p: Placement; slot: Slot | null; pub?: PublicPlayer; champ: string | null; side: 'b' | 'r' }) {
+function Who({ p, slot, pub, champ, side, adj }: { p: Placement; slot: Slot | null; pub?: PublicPlayer; champ: string | null; side: 'b' | 'r'; adj: number }) {
   const flag = flagFor(p, slot, pub, champ);
   return (
     <div className={`pl ${side}`}>
-      <b>{p.name}</b>
+      <b>
+        {p.name}
+        {adj > 0 && (
+          <span className="adjtag" title={`${adj}% lower tonight`}>
+            −{adj}%
+          </span>
+        )}
+      </b>
       {flag &&
         (flag.kind === 'champ' && p.champ ? (
           <small className="ch">
@@ -44,7 +54,7 @@ function Who({ p, slot, pub, champ, side }: { p: Placement; slot: Slot | null; p
   );
 }
 
-export function FaceOff({ game, view, pub, champName }: Props) {
+export function FaceOff({ game, view, pub, champName, adjust = {} }: Props) {
   const all = [...game.blue, ...game.red];
   const notSet = all.filter((p) => (pub.get(p.name)?.roles.length ?? 1) === 0).map((p) => p.name);
   const unlisted = all
@@ -91,7 +101,7 @@ export function FaceOff({ game, view, pub, champName }: Props) {
           const rs = view ? view.red[k] : null;
           return (
             <div className="fo-r" key={r}>
-              <Who p={b} slot={bs} pub={pub.get(b.name)} champ={b.champ ? champName(b) : null} side="b" />
+              <Who p={b} slot={bs} pub={pub.get(b.name)} champ={b.champ ? champName(b) : null} side="b" adj={adjust[b.name] ?? 0} />
               {bs && <div className="nb b">{fmt(bs.value)}</div>}
               {bs && (
                 <div className="br b">
@@ -108,7 +118,7 @@ export function FaceOff({ game, view, pub, champName }: Props) {
                 </div>
               )}
               {rs && <div className="nb r">{fmt(rs.value)}</div>}
-              <Who p={rd} slot={rs} pub={pub.get(rd.name)} champ={rd.champ ? champName(rd) : null} side="r" />
+              <Who p={rd} slot={rs} pub={pub.get(rd.name)} champ={rd.champ ? champName(rd) : null} side="r" adj={adjust[rd.name] ?? 0} />
             </div>
           );
         })}

@@ -7,11 +7,10 @@ import { UnlockDialog } from './components/UnlockDialog.tsx';
 import { runMatch } from './engine/client.ts';
 import { DEFAULT_STEP_DROP, STEP_DROP_MAX, STEP_DROP_MIN } from './engine/constants.ts';
 import { lineupKey } from './engine/lineup.ts';
-import type { MatchPlayer } from './engine/matchmaker.ts';
-import { slotsFor } from './engine/rating.ts';
+import { buildMatchPlayers, cleanAdjustments, type Adjustments } from './lib/adjust.ts';
 import { backgroundFiles } from './lib/assets.ts';
 import { decryptJson } from './lib/lock.ts';
-import { mergeRoster, type LockedRosterFile, type Player, type SecretRoster } from './lib/roster.ts';
+import { mergeRoster, type LockedRosterFile, type SecretRoster } from './lib/roster.ts';
 import { unscrambleJson } from './lib/scramble.ts';
 import { load, save } from './lib/storage.ts';
 import { validTeams, type Teams } from './lib/teams.ts';
@@ -35,6 +34,8 @@ interface SavedSelection {
   players: string[];
   ots: string[];
   games: number;
+  /** Tonight's adjustments: percentage lower, by player. */
+  adjust?: Adjustments;
 }
 
 function readScreen(): Screen | null {
@@ -48,6 +49,7 @@ function initialSelection() {
     players: new Set((s?.players ?? []).filter((n) => NAMES.has(n))),
     ots: new Set((s?.ots ?? []).filter((id) => OT_IDS.has(id))),
     games: s && [1, 2, 3].includes(s.games) ? s.games : 3,
+    adjust: cleanAdjustments(s?.adjust, NAMES),
   };
 }
 
@@ -70,12 +72,6 @@ function initialSettings(): SavedSettings {
 /** Chosen once per visit, so "random" doesn't change while you use the app. */
 const RANDOM_BACKGROUND = backgroundFiles.length ? backgroundFiles[Math.floor(Math.random() * backgroundFiles.length)] : null;
 
-const toMatchPlayers = (names: string[], roster: Map<string, Player>, allowed: ReadonlySet<string>, drop: number): MatchPlayer[] =>
-  names.map((name) => ({
-    name,
-    slots: slotsFor(roster.get(name)!, allowed, drop).map((s) => ({ value: s.value, steps: s.steps, unlisted: s.unlisted, champ: s.champ })),
-  }));
-
 export function App() {
   const [screen, setScreen] = useState<Screen>(() => readScreen() ?? 'tonight');
   const [unlocked, setUnlocked] = useState(false);
@@ -84,6 +80,7 @@ export function App() {
   const [selected, setSelected] = useState<Set<string>>(sel.players);
   const [ots, setOts] = useState<Set<string>>(sel.ots);
   const [games, setGames] = useState<number>(sel.games);
+  const [adjust, setAdjust] = useState<Adjustments>(sel.adjust);
   const [settings] = useState(initialSettings);
   const [drop, setDrop] = useState<number>(settings.drop);
   const [background, setBackground] = useState<string>(settings.background);
@@ -108,10 +105,10 @@ export function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  useEffect(() => save('selection', { players: [...selected], ots: [...ots], games } satisfies SavedSelection), [selected, ots, games]);
+  useEffect(() => save('selection', { players: [...selected], ots: [...ots], games, adjust } satisfies SavedSelection), [selected, ots, games, adjust]);
   useEffect(() => save('settings', { drop, background } satisfies SavedSettings), [drop, background]);
   const backdrop = background === 'none' ? null : background === 'random' ? RANDOM_BACKGROUND : background;
-  useEffect(() => save('teams', teams ? { games: teams.games, players: teams.players, allowed: teams.allowed } : null), [teams]);
+  useEffect(() => save('teams', teams ? { games: teams.games, players: teams.players, allowed: teams.allowed, adjust: teams.adjust } : null), [teams]);
 
   const go = (s: Screen) => {
     if (window.location.hash !== `#${s}`) window.location.hash = s;
@@ -134,14 +131,16 @@ export function App() {
     const names = PUBLIC.filter((p) => selected.has(p.name)).map((p) => p.name);
     if (names.length < 10) return;
     const allowed = new Set([...ots].filter((id) => selected.has(playerOf(id))));
+    const tonight = cleanAdjustments(adjust, NAMES, names);
     setBusy('make');
     setMakeError('');
     try {
-      const res = await runMatch({ players: toMatchPlayers(names, ROSTER, allowed, drop), games, mode: 'make' });
+      const res = await runMatch({ players: buildMatchPlayers(names, ROSTER, allowed, drop, tonight), games, mode: 'make' });
       setTeams((t) => ({
         games: res.games.map((g) => ({ blue: g.blue, red: g.red, out: g.out })),
         players: names,
         allowed: [...allowed],
+        adjust: tonight,
         seq: (t?.seq ?? 0) + 1,
       }));
       setGameIndex(0);
@@ -162,7 +161,7 @@ export function App() {
       const allowed = new Set(teams.allowed);
       const seed = crypto.getRandomValues(new Uint32Array(1))[0];
       const res = await runMatch({
-        players: toMatchPlayers(teams.players, ROSTER, allowed, drop),
+        players: buildMatchPlayers(teams.players, ROSTER, allowed, drop, teams.adjust),
         games: teams.games.length,
         mode: 'shuffle',
         seed,
@@ -207,6 +206,9 @@ export function App() {
             onSelectAll={() => setSelected(new Set(NAMES))}
             onClear={() => setSelected(new Set())}
             onGames={setGames}
+            adjust={adjust}
+            onAdjust={(name, pct) => setAdjust((a) => cleanAdjustments({ ...a, [name]: pct }, NAMES))}
+            onResetAdjust={() => setAdjust({})}
             onMake={make}
           />
         )}
