@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { decryptJson, WrongPasswordError } from '../src/lib/lock.ts';
 import type { LockedRosterFile, SecretRoster } from '../src/lib/roster.ts';
+import type { SaveLockFile, SaveSecret } from '../src/lib/savelock.ts';
 import { askPassword, closePrompt } from './lib/prompt.ts';
 import { DIST, LOCKED_ROSTER, PRIVATE_ROSTER, rel } from './lib/paths.ts';
 
@@ -40,7 +41,6 @@ async function main() {
   const locked = JSON.parse(fs.readFileSync(LOCKED_ROSTER, 'utf8')) as LockedRosterFile;
 
   const password = await askPassword('Password (to search the build for it): ');
-  closePrompt();
   if (!password) throw new Error('No password given.');
   let secret: SecretRoster;
   try {
@@ -49,6 +49,23 @@ async function main() {
     if (e instanceof WrongPasswordError) throw new Error("That password doesn't open the shipped roster, so the check would be meaningless.");
     throw e;
   }
+
+  // The organiser's lock: the master password and the GitHub save token must not appear either.
+  const saveLockPath = path.join(path.dirname(LOCKED_ROSTER), 'save-lock.json');
+  const saveLock = fs.existsSync(saveLockPath) ? (JSON.parse(fs.readFileSync(saveLockPath, 'utf8')) as SaveLockFile) : null;
+  let master = '';
+  let token: string | null = null;
+  const canAsk = process.env.ROSTER_MASTER_PASSWORD !== undefined || Boolean(process.stdin.isTTY);
+  if (saveLock && canAsk) {
+    master = process.env.ROSTER_MASTER_PASSWORD ?? (await askPassword('Master password (to search the build for it): '));
+    try {
+      token = (await decryptJson<SaveSecret>(saveLock.lock, master)).token;
+    } catch (e) {
+      if (e instanceof WrongPasswordError) throw new Error("That master password doesn't open src/data/save-lock.json, so the check would be meaningless.");
+      throw e;
+    }
+  }
+  closePrompt();
 
   const files = listFiles(DIST);
   const texts = files.filter((f) => TEXT.test(f)).map((f) => ({ file: rel(f), text: fs.readFileSync(f, 'utf8') }));
@@ -59,6 +76,15 @@ async function main() {
   const pwLower = password.toLowerCase();
   for (const t of texts) if (t.text.toLowerCase().includes(pwLower)) problems.push(`${t.file} contains the password.`);
   for (const b of binaries) if (b.buf.toString('latin1').toLowerCase().includes(pwLower)) problems.push(`${b.file} contains the password.`);
+  for (const [what, needle, anyCase] of [
+    ['the master password', master, true],
+    ['the GitHub save token', token ?? '', false],
+  ] as const) {
+    if (!needle) continue;
+    const n = anyCase ? needle.toLowerCase() : needle;
+    for (const t of texts) if ((anyCase ? t.text.toLowerCase() : t.text).includes(n)) problems.push(`${t.file} contains ${what}.`);
+    for (const b of binaries) if ((anyCase ? b.buf.toString('latin1').toLowerCase() : b.buf.toString('latin1')).includes(n)) problems.push(`${b.file} contains ${what}.`);
+  }
 
   // 2. Plaintext rating data.
   const patterns: { what: string; re: RegExp }[] = [
@@ -96,6 +122,8 @@ async function main() {
     process.exit(1);
   }
   console.log('  ✓ The password does not appear anywhere (any letter case).');
+  if (saveLock && master) console.log(`  ✓ ${token ? 'The master password and the GitHub save token do' : 'The master password does'} not appear anywhere.`);
+  if (saveLock && !master) console.log('  ! Master password not checked (set ROSTER_MASTER_PASSWORD to include it).');
   console.log(`  ✓ No plaintext ratings, steps or one-trick ratings (${patterns.length} patterns).`);
   console.log('  ✓ The password-locked and scrambled rosters are present.');
   console.log('    (Scrambled is not encrypted: anyone who digs into the code could recover the ratings.)');

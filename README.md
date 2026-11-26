@@ -96,6 +96,30 @@ Official icons are optional. Drop PNGs into `public/assets` with these exact nam
 - `public/assets/map/summoners-rift.png` (optional): replaces the drawn board. If the magnets don't sit on its lanes, nudge the positions in `src/board/slots.ts`.
 - `public/assets/backgrounds/` (optional): any JPG or PNG files, any names, shown as a darkened backdrop behind the page. By default a random one shows on each visit; **Settings → Background** lets you pick one or turn it off. Champion splash art from Riot's Data Dragon works well, e.g. `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Udyr_0.jpg` (change the champion key, and the number for other skins).
 
+## Organiser mode: saving games
+
+The master password unlocks everything the normal one does, plus a **Save game** button on the Teams tab. It adds the game on screen (names, roles and who sat out) to today's record in `src/data/match-records.json`, straight into the GitHub repo, so it shows in **Match history** for everyone after the site rebuilds (about 2 minutes). Games played after midnight count for the night before (the day changes at 6 am).
+
+On the Tonight tab, **Use today's match record** makes the next teams carry on from today's saved games, read fresh from GitHub:
+
+1. Nobody who sat out the last saved game sits out again (this wins any clash).
+2. Sit-outs stay fair across the whole night (nobody sits out twice before everyone has sat out once).
+3. Nobody who was off their main role in their last saved game is off it again.
+
+### Setting up saving (once)
+
+Saving needs a GitHub token that can write to this repo. The token is stored encrypted under the master password, never in readable form.
+
+1. On GitHub: **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+2. Name it (e.g. "Thursday Customs saves"), pick an expiry, choose **Only select repositories** and pick this repo.
+3. Under **Repository permissions**, set **Contents** to **Read and write**. Generate it and copy it.
+4. In the project folder run `npm run set-save-token`, type the master password twice and paste the token. It checks the token can write to the repo before saving anything.
+5. Commit and push `src/data/save-lock.json`.
+
+To change the master password or replace an expired token, run `npm run set-save-token` again. Anyone who cracks the master password could use the token to change files in this repo, so a long master password is safest; the token is limited to this one repo, and you can revoke it on GitHub at any time.
+
+Saves are commits to the repo, so run `git pull` before pushing your own changes.
+
 ## Match history
 
 Each night is a folder named by its date under `public/assets/history/`, e.g. `public/assets/history/2026-11-26/`. Every folder becomes a dropdown on the **Match history** tab, newest first, even before it has screenshots.
@@ -120,8 +144,8 @@ The **Stats** tab shows gol.gg-style player and champion tables (games, win rate
 - A player's rating in a role is main × (1 − 15% × steps). The 15% is editable in Settings.
 - Unlisted roles are a last resort, rated one step below the player's lowest role and flagged. A player with no roles set counts one step below main anywhere, also flagged.
 - An allowed one-trick counts at its rating (or the role rating if higher) when the player lands in that role.
-- Each game scores `4 × team gap + biggest lane gap + 0.4 × average lane gap + off-role cost + 10 × unlisted roles` (bot lane counts as a duo), and the lowest wins. The off-role cost is `1.5 + 1.5 × steps off main` for each player not on their main role, so **main roles come before perfectly even teams**: on our roster about 9.4 of 10 players get their main role, against 7.6 before. Team totals stay just as even; individual lane matchups are a little less so.
-- **Off-role last game, first in line now:** anyone who was off their main role in the last game they played has that cost doubled. Games in one Make teams are filled in order, and the last game of the previous Make teams counts too (until the page is refreshed). The Tonight screen says who's first in line.
+- Each game scores `4 × team gap + biggest lane gap + 0.4 × average lane gap + off-role cost + 10 × unlisted roles` (bot lane counts as a duo), and the lowest wins. The off-role cost is `0.6 + 0.8 × steps off main` for each player not on their main role, so main roles are preferred over a little balance (on our roster about 8.5 of 10 players get their main role).
+- **Nobody off-role two games running:** anyone who was off their main role in the last game they played costs an extra 8 if they're off it again, so it only happens when there's no reasonable alternative. Games in one Make teams are filled in order, and the last game of the previous Make teams counts too (until the page is refreshed), or today's saved games when **Use today's match record** is on.
 - Each ten is solved exactly. With more than ten, sit-outs rotate (nobody sits twice before everyone has sat once, and whoever sat out plays next); up to 14 players every schedule is checked, beyond that a time-boxed search runs in a Web Worker.
 - **Shuffle** picks another lineup within 0.5 of the best.
 - **Adjust for tonight** (under the player list) lowers a player's overall skill by up to 50% for tonight's teams only, e.g. if someone's ill or on a borrowed laptop. Every role and one-trick drops by that much; saved ratings don't change. The teams remember the adjustments they were made with, and a small "−20%" tag shows next to that player.

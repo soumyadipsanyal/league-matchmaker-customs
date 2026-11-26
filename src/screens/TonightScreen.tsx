@@ -21,8 +21,13 @@ interface Props {
   onGames: (g: number) => void;
   /** Tonight's adjustments: percentage lower, by player. */
   adjust: Adjustments;
-  /** Off their main role in the last game made on this visit: first in line for it. */
+  /** Off their main role last game (this visit, or today's record): first in line for it. */
   owed: string[];
+  /** "Use today's match record" is pressed in. */
+  useRecord: boolean;
+  onUseRecord: () => void;
+  /** Today's saved games, summarised. */
+  today: { label: string; games: number; lastOut: string[]; owed: string[]; note: string };
   onAdjust: (name: string, pct: number) => void;
   onResetAdjust: () => void;
   onMake: () => void;
@@ -70,9 +75,28 @@ export function TonightScreen(props: Props) {
               <circle cx="12" cy="12" r="9" />
               <path d="M12 11v6M12 7.5v.5" />
             </svg>
-            Only main roles are shown, but all players are considered for secondary roles as well. Main roles come first, ahead of perfectly even
-            teams.
+            Only main roles are shown, but all players are considered for secondary roles as well. Main roles are preferred, and nobody is
+            off-role two games running.
           </p>
+          <div className="recordbar">
+            <button type="button" className="btn ghost sm recbtn" aria-pressed={props.useRecord} onClick={props.onUseRecord}>
+              <span className="tick" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="gl">
+                  <path d="M5 12.5 10 17.5 19 7" />
+                </svg>
+              </span>
+              Use today's match record
+            </button>
+            {props.useRecord && (
+              <p className="note recinfo" aria-live="polite">
+                {props.today.games === 0
+                  ? `Nothing saved yet for ${props.today.label}. The organiser saves games from the Teams tab.`
+                  : `${props.today.label}: ${plural(props.today.games, 'game')} saved.` +
+                    (props.today.lastOut.length ? ` ${andList(props.today.lastOut)} sat out last game, so they play next.` : '')}
+                {props.today.note && ` ${props.today.note}`}
+              </p>
+            )}
+          </div>
           {firstInLine.length > 0 && (
             <p className="rolesnote owed">
               <svg className="gl" viewBox="0 0 24 24" aria-hidden="true">

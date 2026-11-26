@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_STEP_DROP, OFF_ROLE_REPEAT, WEIGHTS } from '../src/engine/constants.ts';
+import { DEFAULT_STEP_DROP, WEIGHTS } from '../src/engine/constants.ts';
 import { placedSlot, roleRating, slotFor } from '../src/engine/rating.ts';
 import { rolePenalty, scoreLineup } from '../src/engine/score.ts';
 import { Balancer } from '../src/engine/balance.ts';
@@ -98,15 +98,18 @@ describe('game score', () => {
     expect(n.score).toBeCloseTo(12 + 1 + 0.25 + off(1) + off(2) + off(1) + WEIGHTS.unlisted, 10);
   });
 
-  it('puts main roles ahead of perfect balance', () => {
-    // One player one step off main costs more than a 0.5 gap between team totals.
-    expect(rolePenalty({ steps: 1, unlisted: false })).toBeGreaterThan(WEIGHTS.teamGap * 0.5);
+  it('prefers main roles over a small balance gain', () => {
+    // One player one step off main costs more than a 0.25 gap between team totals.
+    expect(rolePenalty({ steps: 1, unlisted: false })).toBeGreaterThan(WEIGHTS.teamGap * 0.25);
     expect(rolePenalty({ steps: 0, unlisted: false })).toBe(0);
   });
 
-  it('doubles the cost for someone who was off main last game too', () => {
+  it('makes being off main two games running very costly', () => {
     const once = rolePenalty({ steps: 1, unlisted: false });
-    expect(rolePenalty({ steps: 1, unlisted: false }, true)).toBeCloseTo(once * OFF_ROLE_REPEAT, 10);
+    const again = rolePenalty({ steps: 1, unlisted: false }, true);
+    expect(again - once).toBe(WEIGHTS.offRoleAgain);
+    // Worse than a 1.5 gap between team totals.
+    expect(again).toBeGreaterThan(WEIGHTS.teamGap * 1.5);
     expect(rolePenalty({ steps: 0, unlisted: false }, true)).toBe(0);
   });
 });

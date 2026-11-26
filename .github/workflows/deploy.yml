@@ -21,6 +21,7 @@ jobs:
       # Optional: add a repository secret called ROSTER_PASSWORD to also run
       # the leak check on every deploy. Without it that step is skipped.
       ROSTER_PASSWORD: ${{ secrets.ROSTER_PASSWORD }}
+      ROSTER_MASTER_PASSWORD: ${{ secrets.ROSTER_MASTER_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

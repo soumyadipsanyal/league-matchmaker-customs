@@ -6,6 +6,13 @@ import { ROLES, ROLE_NAME } from '../lib/roles.ts';
 import type { Player, PublicPlayer } from '../lib/roster.ts';
 import { champName, gameView, teamsToText, type Placement, type Teams } from '../lib/teams.ts';
 
+export interface SaveStatus {
+  /** Which lineup this status is about. */
+  key: string;
+  state: 'saving' | 'saved' | 'error';
+  message: string;
+}
+
 interface Props {
   teams: Teams | null;
   pub: Map<string, PublicPlayer>;
@@ -16,6 +23,12 @@ interface Props {
   onShuffle: () => void;
   busy: boolean;
   notice: string;
+  /** Unlocked with the master password: Save is available. */
+  organiser: boolean;
+  /** If the game on screen is already in today's record, its number there (else 0). */
+  savedAs: number;
+  saveStatus: SaveStatus | null;
+  onSave: () => void;
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -42,7 +55,7 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export function TeamsScreen({ teams, pub, rated, drop, gameIndex, onGame, onShuffle, busy, notice }: Props) {
+export function TeamsScreen({ teams, pub, rated, drop, gameIndex, onGame, onShuffle, busy, notice, organiser, savedAs, saveStatus, onSave }: Props) {
   const [copied, setCopied] = useState<'' | 'ok' | 'fail'>('');
   const game = teams?.games[Math.min(gameIndex, teams.games.length - 1)] ?? null;
   const view = game && rated ? gameView(game, rated, drop, teams?.adjust) : null;
@@ -99,7 +112,23 @@ export function TeamsScreen({ teams, pub, rated, drop, gameIndex, onGame, onShuf
                   <button type="button" className="btn ghost" onClick={onShuffle} disabled={busy}>
                     {busy ? 'Shuffling…' : 'Shuffle'}
                   </button>
+                  {organiser && (
+                    <button
+                      type="button"
+                      className="btn savebtn"
+                      onClick={onSave}
+                      disabled={savedAs > 0 || saveStatus?.state === 'saving'}
+                      title="Add this game to today's match history"
+                    >
+                      {saveStatus?.state === 'saving' ? 'Saving…' : savedAs > 0 ? `Saved as game ${savedAs}` : `Save game ${gameIndex + 1}`}
+                    </button>
+                  )}
                 </div>
+                {organiser && saveStatus && (
+                  <p className={`note savenote ${saveStatus.state}`} role="status">
+                    {saveStatus.message}
+                  </p>
+                )}
                 <p className="note" aria-live="polite">
                   {notice || 'Copy teams copies every game as plain text for the group chat, without ratings.'}
                 </p>

@@ -33,10 +33,12 @@ function Mark() {
 interface Props {
   screen: Screen;
   unlocked: boolean;
+  /** Unlocked with the master password. */
+  organiser: boolean;
   onLockClick: () => void;
 }
 
-export function Header({ screen, unlocked, onLockClick }: Props) {
+export function Header({ screen, unlocked, organiser, onLockClick }: Props) {
   return (
     <header className="hdr">
       <div className="wrap hdr-row">
@@ -51,9 +53,15 @@ export function Header({ screen, unlocked, onLockClick }: Props) {
             </a>
           ))}
         </nav>
-        <button type="button" className={`lockbtn${unlocked ? ' open' : ''}`} onClick={onLockClick} aria-label={unlocked ? 'Lock: hide the ratings' : 'Unlock the ratings'}>
+        <button
+          type="button"
+          className={`lockbtn${unlocked ? ' open' : ''}${organiser ? ' org' : ''}`}
+          onClick={onLockClick}
+          aria-label={unlocked ? `Lock: hide the ratings${organiser ? ' and leave organiser mode' : ''}` : 'Unlock the ratings'}
+        >
           <Padlock open={unlocked} />
           <span>{unlocked ? 'Lock' : 'Unlock'}</span>
+          {organiser && <span className="orgtag">Organiser</span>}
         </button>
       </div>
     </header>

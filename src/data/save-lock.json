@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "repo": "soumyadipsanyal/league-matchmaker-customs",
+  "branch": "main",
+  "path": "src/data/match-records.json",
+  "lock": {
+    "alg": "AES-GCM",
+    "kdf": "PBKDF2",
+    "hash": "SHA-256",
+    "iterations": 600000,
+    "salt": "qQ05WH62VmJl5Y5PLnyxzw==",
+    "iv": "XZFety+tcmVaSwT9",
+    "data": "WM3UrarwaTGfh3dpqucA/DIoUGkX65dHUhDYdmo/wHmM7b1idUnwX3bBg9U="
+  }
+}

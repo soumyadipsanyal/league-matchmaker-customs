@@ -25,45 +25,39 @@ export const consecutiveRuleHolds = (n: number) => 2 * sitOutsPerGame(n) <= n;
 /** schedule[g] = sorted indices of the players sitting out game g. */
 export type Schedule = number[][];
 
-export function scheduleFromOrder(order: readonly number[], games: number): Schedule {
+/**
+ * Where the night stands before these games: how many games each player has
+ * already sat out, and who sat out the last one (from today's saved games).
+ */
+export interface RotationStart {
+  count: number[];
+  prev: number[];
+}
+
+export const freshStart = (n: number): RotationStart => ({ count: new Array<number>(n).fill(0), prev: [] });
+
+/** Whether "sat out last game → plays this one" can be kept, given who sat out last. */
+const canKeepConsecutive = (n: number, k: number, prev: ReadonlySet<number>) => n - prev.size >= k;
+
+export function scheduleFromOrder(order: readonly number[], games: number, start: RotationStart = freshStart(order.length)): Schedule {
   const n = order.length;
   const k = sitOutsPerGame(n);
   if (k === 0) return Array.from({ length: games }, () => []);
   const pos = new Array<number>(n);
   order.forEach((p, i) => (pos[p] = i));
-  const count = new Array<number>(n).fill(0);
-  const strict = consecutiveRuleHolds(n);
+  const count = [...start.count];
   const out: Schedule = [];
-  let prev = new Set<number>();
+  let prev = new Set<number>(start.prev);
 
-  const pick = (avoidPrev: boolean): number[] => {
-    const byCount = [...order].sort((a, b) => count[a] - count[b] || pos[a] - pos[b]);
-    const chosen: number[] = [];
-    let i = 0;
-    while (chosen.length < k && i < byCount.length) {
-      const level = count[byCount[i]];
-      const group: number[] = [];
-      while (i < byCount.length && count[byCount[i]] === level) group.push(byCount[i++]);
-      for (const p of group) {
-        if (chosen.length === k) break;
-        if (avoidPrev && prev.has(p)) continue;
-        chosen.push(p);
-      }
-    }
-    return chosen;
-  };
-  const fair = (s: number[]) => {
-    if (s.length !== k) return false;
-    const inSet = new Set(s);
-    const maxIn = Math.max(...s.map((p) => count[p]));
-    for (let p = 0; p < n; p++) if (!inSet.has(p) && count[p] < maxIn) return false;
-    return true;
+  // Sitting out twice running comes first: if it can be avoided, last game's
+  // sit-outs aren't candidates at all. Then the least-rested sit out first.
+  const pick = (): number[] => {
+    const pool = canKeepConsecutive(n, k, prev) ? order.filter((p) => !prev.has(p)) : [...order];
+    return pool.sort((a, b) => count[a] - count[b] || pos[a] - pos[b]).slice(0, k);
   };
 
   for (let g = 0; g < games; g++) {
-    let s = pick(strict);
-    if (!fair(s)) s = pick(false);
-    s.sort((a, b) => a - b);
+    const s = pick().sort((a, b) => a - b);
     out.push(s);
     for (const p of s) count[p]++;
     prev = new Set(s);
@@ -72,23 +66,26 @@ export function scheduleFromOrder(order: readonly number[], games: number): Sche
 }
 
 /** Checks a schedule against the rules above. Returns the first problem, or null. */
-export function scheduleProblem(n: number, schedule: Schedule): string | null {
+export function scheduleProblem(n: number, schedule: Schedule, start: RotationStart = freshStart(n)): string | null {
   const k = sitOutsPerGame(n);
-  const count = new Array<number>(n).fill(0);
-  const strict = consecutiveRuleHolds(n);
+  const count = [...start.count];
+  let prev = new Set<number>(start.prev);
   for (let g = 0; g < schedule.length; g++) {
     const s = schedule[g];
     const set = new Set(s);
     if (s.length !== k || set.size !== k) return `game ${g + 1} has ${set.size} sitting out, expected ${k}`;
     if (s.some((p) => p < 0 || p >= n)) return `game ${g + 1} names an unknown player`;
+    const keep = canKeepConsecutive(n, k, prev);
+    if (keep && s.some((p) => prev.has(p))) return `game ${g + 1}: someone sits out two games in a row`;
     if (k > 0) {
       const maxIn = Math.max(...s.map((p) => count[p]));
       for (let p = 0; p < n; p++) {
-        if (!set.has(p) && count[p] < maxIn) return `game ${g + 1}: player ${p} hasn't sat out as often as someone sitting out again`;
+        // Last game's sit-outs are excused: playing again comes first.
+        if (!set.has(p) && count[p] < maxIn && !(keep && prev.has(p))) return `game ${g + 1}: player ${p} hasn't sat out as often as someone sitting out again`;
       }
     }
-    if (strict && g > 0 && s.some((p) => schedule[g - 1].includes(p))) return `game ${g + 1}: someone sits out two games in a row`;
     for (const p of s) count[p]++;
+    prev = set;
   }
   return null;
 }

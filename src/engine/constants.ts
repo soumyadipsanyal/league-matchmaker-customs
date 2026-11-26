@@ -1,3 +1,7 @@
+/** Main-role preference: cost of being off main at all, and per step down the role list. */
+const OFF_MAIN = 0.6;
+const STEP_COST = 0.8;
+
 /** Each step down a player's role list takes this share off their main rating. Editable in Settings. */
 export const DEFAULT_STEP_DROP = 0.15;
 
@@ -8,24 +12,22 @@ export const STEP_DROP_MAX = 0.3;
 /**
  * Game score, lower is better:
  *   4 × |blue total − red total| + 1.0 × biggest lane gap + 0.4 × average lane gap
- *   + for each player off their main role: offMain + steps × (steps off main),
- *     doubled if they were also off their main role last game they played
+ *   + for each player off their main role: offMain + steps × (steps off main)
+ *   + offRoleAgain for each player off main who was also off main last game they played
  *   + 10 × unlisted-role placements
  *
- * Getting people onto their main role counts for more than perfect balance:
- * one player one step off main costs as much as a 0.75 gap between team totals.
+ * Main roles are preferred over a little balance, and being off-role two games
+ * running is avoided whenever there is any reasonable alternative.
  */
 export const WEIGHTS = {
   teamGap: 4,
   maxLane: 1,
   avgLane: 0.4,
-  offMain: 1.5,
-  steps: 1.5,
+  offMain: OFF_MAIN,
+  steps: STEP_COST,
+  offRoleAgain: 8,
   unlisted: 10,
 } as const;
-
-/** Off their main role last game they played: their off-role cost is multiplied by this. */
-export const OFF_ROLE_REPEAT = 2;
 
 /** Shuffle picks among lineups within this much of the best score. */
 export const SHUFFLE_TOLERANCE = 0.5;

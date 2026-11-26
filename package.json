@@ -12,7 +12,8 @@
     "test": "vitest run",
     "encrypt-roster": "tsx scripts/encrypt-roster.ts",
     "check-dist": "tsx scripts/check-dist.ts",
-    "verify": "npm run build && npm test && npm run check-dist"
+    "verify": "npm run build && npm test && npm run check-dist",
+    "set-save-token": "tsx scripts/set-save-token.ts"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",

@@ -27,6 +27,8 @@ export interface Teams {
   adjust: Adjustments;
   /** Who was owed their main role when the teams were made (off it the game before). */
   priority: string[];
+  /** Today's saved games the teams carried on from (sit-out counts, last game's sit-outs), if used. */
+  history?: { satOut: Record<string, number>; lastOut: string[] };
   /** Bumped on every make/shuffle, to replay the board animation. */
   seq: number;
 }
@@ -68,6 +70,19 @@ export function teamsToText(t: Teams, byName: Map<string, PublicPlayer>): string
   return lines.join('\n');
 }
 
+function cleanHistory(x: unknown, names: Set<string>): Teams['history'] {
+  if (!x || typeof x !== 'object') return undefined;
+  const h = x as { satOut?: unknown; lastOut?: unknown };
+  const satOut: Record<string, number> = {};
+  if (h.satOut && typeof h.satOut === 'object') {
+    for (const [n, c] of Object.entries(h.satOut as Record<string, unknown>)) {
+      if (names.has(n) && typeof c === 'number' && Number.isInteger(c) && c >= 0) satOut[n] = c;
+    }
+  }
+  const lastOut = Array.isArray(h.lastOut) ? h.lastOut.filter((n): n is string => typeof n === 'string' && names.has(n)) : [];
+  return { satOut, lastOut };
+}
+
 /** Checks teams loaded from storage against the current roster. */
 export function validTeams(x: unknown, names: Set<string>): Teams | null {
   if (!x || typeof x !== 'object') return null;
@@ -88,6 +103,7 @@ export function validTeams(x: unknown, names: Set<string>): Teams | null {
     allowed: t.allowed.filter((a) => typeof a === 'string'),
     adjust: cleanAdjustments(t.adjust, names, t.players),
     priority: Array.isArray(t.priority) ? t.priority.filter((n) => typeof n === 'string' && t.players.includes(n)) : [],
+    history: cleanHistory(t.history, names),
     seq: 0,
   };
 }

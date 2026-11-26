@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createMatchmaker } from '../src/engine/matchmaker.ts';
 import { lineupKey } from '../src/engine/lineup.ts';
 import { makeRng, shuffleInPlace } from '../src/engine/rng.ts';
-import { scheduleFromOrder, scheduleProblem, type Schedule } from '../src/engine/rotation.ts';
+import { scheduleFromOrder, scheduleProblem, type RotationStart, type Schedule } from '../src/engine/rotation.ts';
 import { ROLES } from '../src/lib/roles.ts';
 import { player, syntheticRoster, toMatch } from './helpers.ts';
 
@@ -47,6 +47,29 @@ describe('sit-out rotation', () => {
     expect(all.length).toBe(24);
   });
 
+  it("carries on from today's saved games", () => {
+    // 12 players, 2 sit out a game. Earlier today players 0-3 sat out once, and 2 and 3 sat out the last game.
+    const start: RotationStart = { count: [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0], prev: [2, 3] };
+    const rng = makeRng(3);
+    for (let t = 0; t < 30; t++) {
+      const s = scheduleFromOrder(shuffleInPlace(rng, [...Array(12).keys()]), 3, start);
+      expect(scheduleProblem(12, s, start)).toBeNull();
+      expect(s[0].filter((p) => p === 2 || p === 3)).toEqual([]);
+      // Those who haven't sat out yet go first.
+      for (const p of s[0]) expect(start.count[p]).toBe(0);
+    }
+  });
+
+  it('never makes anyone sit out twice running, even when that bends the fairness rule', () => {
+    // 2 and 3 sat out last game but have sat out less than everyone else.
+    const start: RotationStart = { count: [2, 2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2], prev: [2, 3] };
+    const s = scheduleFromOrder([...Array(12).keys()], 1, start);
+    expect(s[0]).not.toContain(2);
+    expect(s[0]).not.toContain(3);
+    expect(scheduleProblem(12, s, start)).toBeNull();
+    expect(scheduleProblem(12, [[2, 4]], start)).toMatch(/two games in a row/);
+  });
+
   it('rejects schedules that break the rules', () => {
     expect(scheduleProblem(12, [[0, 1], [0, 2]])).toMatch(/two games in a row|sat out as often/);
     expect(scheduleProblem(12, [[0, 1], [2, 3], [0, 4]])).toMatch(/sat out as often/);
@@ -82,6 +105,15 @@ describe('main roles first', () => {
     expect(off).toHaveLength(1);
     expect(off[0]).not.toBe(x);
     expect(next.owed).toEqual(off);
+  });
+
+  it("uses today's record: last game's sit-outs play, and the least-rested sit out", () => {
+    const roster = syntheticRoster(12, 41);
+    const names = roster.map((p) => p.name);
+    const history = { satOut: { [names[0]]: 1, [names[1]]: 1, [names[2]]: 1, [names[3]]: 1 }, lastOut: [names[2], names[3]] };
+    const res = createMatchmaker()({ players: toMatch(roster), games: 2, mode: 'make', history });
+    expect(res.games[0].out.filter((n) => n === names[2] || n === names[3])).toEqual([]);
+    for (const n of res.games[0].out) expect(history.satOut[n] ?? 0).toBe(0);
   });
 
   it('never leaves the same player off their main role two games running', () => {

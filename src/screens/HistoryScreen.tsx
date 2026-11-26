@@ -5,11 +5,42 @@ import { assetUrl } from '../lib/assets.ts';
 import { plural } from '../lib/format.ts';
 import { nightLabel, shotsFor } from '../lib/history.ts';
 import type { StatGame, StatsFile } from '../lib/stats.ts';
+import type { RecordGame, RecordsFile } from '../lib/records.ts';
+import { ROLES, ROLE_NAME } from '../lib/roles.ts';
 
 const STATS = statsData as StatsFile;
 
-/** Nights with a screenshot folder or recorded stats, newest first. */
-const NIGHTS = [...new Set([...historyNights, ...STATS.nights.map((n) => n.date)])].sort().reverse();
+function Lineup({ g }: { g: RecordGame }) {
+  return (
+    <div className="lineup">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" className="b">
+              Blue side
+            </th>
+            <th scope="col" className="rlh">
+              <span className="sr">Role</span>
+            </th>
+            <th scope="col" className="r">
+              Red side
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {ROLES.map((r, k) => (
+            <tr key={r}>
+              <td className="b">{g.blue[k]?.name}</td>
+              <td className="rlh">{ROLE_NAME[r]}</td>
+              <td className="r">{g.red[k]?.name}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {g.out.length > 0 && <p className="note">Sat out: {g.out.join(', ')}</p>}
+    </div>
+  );
+}
 
 function Shots({ paths, label }: { paths: string[]; label: string }) {
   return (
@@ -27,11 +58,11 @@ function Shots({ paths, label }: { paths: string[]; label: string }) {
   );
 }
 
-function Night({ date }: { date: string }) {
+function Night({ date, saved }: { date: string; saved: RecordGame[] }) {
   const [open, setOpen] = useState(false);
   const shots = shotsFor(date, manifest);
   const recorded = STATS.nights.find((n) => n.date === date)?.games ?? [];
-  const games = [...new Set([...shots.games.keys(), ...recorded.map((g) => g.game)])].sort((a, b) => a - b);
+  const games = [...new Set([...shots.games.keys(), ...recorded.map((g) => g.game), ...saved.map((_, i) => i + 1)])].sort((a, b) => a - b);
   const shotCount = [...shots.games.values()].reduce((s, l) => s + l.length, 0) + shots.other.length;
   const result = (g: StatGame | undefined) =>
     g ? <span className={`res ${g.winner}`}>{g.winner === 'blue' ? 'Blue' : 'Red'} side won · {g.duration}</span> : null;
@@ -58,6 +89,7 @@ function Night({ date }: { date: string }) {
                 <h3>
                   Game {n} {result(recorded.find((g) => g.game === n))}
                 </h3>
+                {saved[n - 1] && <Lineup g={saved[n - 1]} />}
                 {paths.length ? <Shots paths={paths} label={`Game ${n}`} /> : <p className="note">No screenshot for this game yet.</p>}
               </section>
             );
@@ -74,7 +106,9 @@ function Night({ date }: { date: string }) {
   );
 }
 
-export function HistoryScreen() {
+export function HistoryScreen({ records }: { records: RecordsFile }) {
+  /** Nights with a screenshot folder, recorded stats or saved games, newest first. */
+  const NIGHTS = [...new Set([...historyNights, ...STATS.nights.map((n) => n.date), ...records.nights.map((n) => n.date)])].sort().reverse();
   return (
     <section className="band">
       <div className="wrap">
@@ -87,7 +121,7 @@ export function HistoryScreen() {
         ) : (
           <div className="nights">
             {NIGHTS.map((d) => (
-              <Night key={d} date={d} />
+              <Night key={d} date={d} saved={records.nights.find((n) => n.date === d)?.games ?? []} />
             ))}
           </div>
         )}

@@ -21,7 +21,7 @@ import { Balancer, maskOf, type Lineup, type SlotMatrix } from './balance.ts';
 import { SEARCH_TIME_MS, SHUFFLE_TOLERANCE } from './constants.ts';
 import { rolePenalty } from './score.ts';
 import { makeRng, randInt, shuffleInPlace, type Rng } from './rng.ts';
-import { SEATS, scheduleFromOrder, scheduleKey, sitOutsPerGame, type Schedule } from './rotation.ts';
+import { SEATS, freshStart, scheduleFromOrder, scheduleKey, sitOutsPerGame, type RotationStart, type Schedule } from './rotation.ts';
 
 /** A player's numbers in each role (ROLES order), worked out on the main thread. */
 export interface MatchPlayer {
@@ -40,6 +40,8 @@ export interface MatchRequest {
   timeBudgetMs?: number;
   /** Players owed their main role: off it in the last game they played (from teams made earlier this visit). */
   priority?: string[];
+  /** Today's saved games so far: games each player sat out, and who sat out the last one. */
+  history?: { satOut: Record<string, number>; lastOut: string[] };
 }
 
 export interface MatchGame {
@@ -139,7 +141,7 @@ const playingIn = (n: number, out: readonly number[]) => {
   return Array.from({ length: n }, (_, i) => i).filter((i) => !o.has(i));
 };
 
-function searchSchedules(players: MatchPlayer[], games: number, rng: Rng, budgetMs: number, owed: Set<number>): Search {
+function searchSchedules(players: MatchPlayer[], games: number, rng: Rng, budgetMs: number, owed: Set<number>, start: RotationStart): Search {
   const n = players.length;
   const balancer = new Balancer(toMatrix(players, owed));
   const base = { players, balancer, owed, balancers: new Map<string, Balancer>(), key: '' };
@@ -157,10 +159,10 @@ function searchSchedules(players: MatchPlayer[], games: number, rng: Rng, budget
   const k = sitOutsPerGame(n);
   const identity = Array.from({ length: n }, (_, i) => i);
   if (k === 0) {
-    const best = evalSchedule(scheduleFromOrder(identity, games));
+    const best = evalSchedule(scheduleFromOrder(identity, games, start));
     return { ...base, visited, best };
   }
-  if (binomial(n, k) <= EXACT_TENS_LIMIT) return { ...base, ...exactSearch(players, games, balancer) };
+  if (binomial(n, k) <= EXACT_TENS_LIMIT) return { ...base, ...exactSearch(players, games, balancer, start) };
 
   // Exact total if it can be at most `cutoff`, else null. Tens that can't
   // beat what's left of the cutoff stop searching early (Balancer.bestBelow).
@@ -193,29 +195,31 @@ function searchSchedules(players: MatchPlayer[], games: number, rng: Rng, budget
     return v;
   };
 
-  // A position in the order always gets the same sit-out pattern (which games),
-  // so swapping two positions just swaps two players' patterns. Swaps between
-  // positions with the same pattern change nothing and are skipped.
+  // From a fresh start, a position in the order always gets the same sit-out
+  // pattern (which games), so swapping two positions with the same pattern
+  // changes nothing and is skipped. Carrying on from earlier games, players
+  // differ, so every swap is tried.
+  const fresh = start.prev.length === 0 && start.count.every((c) => c === start.count[0]);
   const patternAt = (() => {
-    const s = scheduleFromOrder(identity, games);
+    const s = scheduleFromOrder(identity, games, start);
     return identity.map((p) => s.map((out) => (out.includes(p) ? '1' : '0')).join(''));
   })();
   const pairs: [number, number][] = [];
-  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (patternAt[i] !== patternAt[j]) pairs.push([i, j]);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (!fresh || patternAt[i] !== patternAt[j]) pairs.push([i, j]);
 
-  const start = now();
-  const timeLeft = () => now() - start < budgetMs;
+  const startedAt = now();
+  const timeLeft = () => now() - startedAt < budgetMs;
   const maxStall = 30 + 3 * n;
 
   /** Hill-climbs from `order` (changed in place) by swapping players' patterns. */
   const climb = (order: number[]): Visited => {
-    let cur = evalSchedule(scheduleFromOrder(order, games));
+    let cur = evalSchedule(scheduleFromOrder(order, games, start));
     let stall = 0;
     while (stall < maxStall && timeLeft()) {
       const [i, j] = pairs[randInt(rng, pairs.length)];
       [order[i], order[j]] = [order[j], order[i]];
       // Evaluated exactly when within the shuffle tolerance, so Shuffle has near-best schedules to pick from.
-      const next = tryEval(scheduleFromOrder(order, games), cur.total + SHUFFLE_TOLERANCE);
+      const next = tryEval(scheduleFromOrder(order, games, start), cur.total + SHUFFLE_TOLERANCE);
       if (next && next.total < cur.total - 1e-9) {
         cur = next;
         stall = 0;
@@ -289,31 +293,31 @@ function combos(from: readonly number[], k: number, start = 0, acc: number[] = [
 
 /**
  * Every set that may sit out next, given how often each player has sat out
- * and who sat out last game: the least-rested first, all of a level before
- * any of the next.
+ * and who sat out last game. Not sitting out twice running comes first (last
+ * game's sit-outs are left out whenever enough others remain); then the
+ * least-rested sit out first, all of a level before any of the next.
  */
-function validSitOuts(n: number, k: number, count: number[], prev: ReadonlySet<number>, strict: boolean): number[][] {
-  const levels = [...new Set(count)].sort((a, b) => a - b);
+function validSitOuts(n: number, k: number, count: number[], prev: ReadonlySet<number>): number[][] {
+  const everyone = Array.from({ length: n }, (_, i) => i);
+  const pool = n - prev.size >= k ? everyone.filter((p) => !prev.has(p)) : everyone;
+  const levels = [...new Set(pool.map((p) => count[p]))].sort((a, b) => a - b);
   const forced: number[] = [];
   for (const level of levels) {
-    const group = Array.from({ length: n }, (_, i) => i).filter((i) => count[i] === level);
+    const group = pool.filter((i) => count[i] === level);
     const need = k - forced.length;
     if (group.length <= need) {
-      if (strict && group.some((p) => prev.has(p))) return [];
       forced.push(...group);
       if (forced.length === k) return [forced.sort((a, b) => a - b)];
       continue;
     }
-    const pool = strict ? group.filter((p) => !prev.has(p)) : group;
-    return combos(pool, need).map((c) => [...forced, ...c].sort((a, b) => a - b));
+    return combos(group, need).map((c) => [...forced, ...c].sort((a, b) => a - b));
   }
   return [];
 }
 
-function exactSearch(players: MatchPlayer[], games: number, balancer: Balancer): { visited: Map<string, Visited>; best: Visited } {
+function exactSearch(players: MatchPlayer[], games: number, balancer: Balancer, start: RotationStart): { visited: Map<string, Visited>; best: Visited } {
   const n = players.length;
   const k = sitOutsPerGame(n);
-  const strict = 2 * k <= n;
   const cost = new Map<string, number>();
   let minCost = Infinity;
   for (const out of combos(Array.from({ length: n }, (_, i) => i), k)) {
@@ -325,7 +329,7 @@ function exactSearch(players: MatchPlayer[], games: number, balancer: Balancer):
   let bestTotal = Infinity;
   const found: { best: Visited | null } = { best: null };
   const near: Visited[] = [];
-  const count = new Array<number>(n).fill(0);
+  const count = [...start.count];
   const sched: Schedule = [];
   const dfs = (g: number, prev: ReadonlySet<number>, total: number) => {
     if (total + (games - g) * minCost > bestTotal + tol + 1e-9) return;
@@ -338,7 +342,7 @@ function exactSearch(players: MatchPlayer[], games: number, balancer: Balancer):
       if (near.length < NEAR_LIMIT) near.push(v);
       return;
     }
-    for (const s of validSitOuts(n, k, count, prev, strict)) {
+    for (const s of validSitOuts(n, k, count, prev)) {
       for (const p of s) count[p]++;
       sched.push(s);
       dfs(g + 1, new Set(s), total + cost.get(s.join(','))!);
@@ -346,7 +350,7 @@ function exactSearch(players: MatchPlayer[], games: number, balancer: Balancer):
       for (const p of s) count[p]--;
     }
   };
-  dfs(0, new Set(), 0);
+  dfs(0, new Set(start.prev), 0);
   const visited = new Map<string, Visited>();
   for (const v of near) if (v.total <= bestTotal + tol + 1e-9) visited.set(scheduleKey(v.schedule), v);
   if (!found.best) throw new Error('No schedule keeps the sit-out rules.');
@@ -373,12 +377,18 @@ export function createMatchmaker() {
     const tol = req.tolerance ?? SHUFFLE_TOLERANCE;
     const names = new Map(players.map((p, i) => [p.name, i]));
     const startOwed = new Set((req.priority ?? []).map((nm) => names.get(nm)).filter((i): i is number => i !== undefined));
-    const key = JSON.stringify([players, games, owedKey(startOwed)]);
+    const start = freshStart(players.length);
+    for (const [nm, c] of Object.entries(req.history?.satOut ?? {})) {
+      const i = names.get(nm);
+      if (i !== undefined) start.count[i] = c;
+    }
+    start.prev = (req.history?.lastOut ?? []).map((nm) => names.get(nm)).filter((i): i is number => i !== undefined);
+    const key = JSON.stringify([players, games, owedKey(startOwed), start]);
     const owedNames = (o: Set<number>) => [...o].map((i) => players[i].name).sort((a, b) => a.localeCompare(b));
 
     if (req.mode === 'make' || !last || last.key !== key) {
       const rng = makeRng(req.mode === 'make' ? 1 : (req.seed ?? 1));
-      last = searchSchedules(players, games, rng, req.timeBudgetMs ?? SEARCH_TIME_MS, startOwed);
+      last = searchSchedules(players, games, rng, req.timeBudgetMs ?? SEARCH_TIME_MS, startOwed, start);
       last.key = key;
     }
     const s = last;

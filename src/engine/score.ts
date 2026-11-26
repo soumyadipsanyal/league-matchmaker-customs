@@ -1,4 +1,4 @@
-import { OFF_ROLE_REPEAT, WEIGHTS } from './constants.ts';
+import { WEIGHTS } from './constants.ts';
 
 /** The parts of a slot that scoring needs. */
 export interface ScoredSlot {
@@ -9,11 +9,12 @@ export interface ScoredSlot {
 
 /**
  * What a placement costs for not being on the player's main role: a flat cost
- * for being off main plus a cost per step, doubled for someone who was also
- * off main last game; and a large cost for a role they don't list at all.
+ * for being off main plus a cost per step, a large extra cost if they were
+ * also off main the last game they played, and a large cost for a role they
+ * don't list at all.
  */
 export function rolePenalty(s: { steps: number; unlisted: boolean }, offLastGame = false): number {
-  const off = s.steps > 0 ? (WEIGHTS.offMain + WEIGHTS.steps * s.steps) * (offLastGame ? OFF_ROLE_REPEAT : 1) : 0;
+  const off = s.steps > 0 ? WEIGHTS.offMain + WEIGHTS.steps * s.steps + (offLastGame ? WEIGHTS.offRoleAgain : 0) : 0;
   return off + (s.unlisted ? WEIGHTS.unlisted : 0);
 }
 
