@@ -5,8 +5,8 @@ export function Footer() {
         <div>
           <h2>How teams are made</h2>
           <p>
-            Everyone who's in is split into two teams with totals as close as possible, with each lane kept as even as it can be and as many
-            people on their main role as possible. With more than ten, sit-outs rotate: nobody sits out twice before everyone has sat out once,
+            Everyone who's in is put on their main role wherever possible, with anyone who was off it last game first in line, then split into two
+            teams with totals as close as possible and lanes as even as they can be. With more than ten, sit-outs rotate: nobody sits out twice before everyone has sat out once,
             and anyone who sits out a game plays the next.
           </p>
         </div>

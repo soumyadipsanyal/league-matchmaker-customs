@@ -25,6 +25,8 @@ export interface Teams {
   allowed: string[];
   /** Tonight's adjustments the teams were made with (percentage lower, by player). */
   adjust: Adjustments;
+  /** Who was owed their main role when the teams were made (off it the game before). */
+  priority: string[];
   /** Bumped on every make/shuffle, to replay the board animation. */
   seq: number;
 }
@@ -85,6 +87,7 @@ export function validTeams(x: unknown, names: Set<string>): Teams | null {
     players: t.players,
     allowed: t.allowed.filter((a) => typeof a === 'string'),
     adjust: cleanAdjustments(t.adjust, names, t.players),
+    priority: Array.isArray(t.priority) ? t.priority.filter((n) => typeof n === 'string' && t.players.includes(n)) : [],
     seq: 0,
   };
 }

@@ -8,15 +8,24 @@ export const STEP_DROP_MAX = 0.3;
 /**
  * Game score, lower is better:
  *   4 × |blue total − red total| + 1.0 × biggest lane gap + 0.4 × average lane gap
- *   + 0.6 × total steps off main (all ten) + 10 × unlisted-role placements
+ *   + for each player off their main role: offMain + steps × (steps off main),
+ *     doubled if they were also off their main role last game they played
+ *   + 10 × unlisted-role placements
+ *
+ * Getting people onto their main role counts for more than perfect balance:
+ * one player one step off main costs as much as a 0.75 gap between team totals.
  */
 export const WEIGHTS = {
   teamGap: 4,
   maxLane: 1,
   avgLane: 0.4,
-  steps: 0.6,
+  offMain: 1.5,
+  steps: 1.5,
   unlisted: 10,
 } as const;
+
+/** Off their main role last game they played: their off-role cost is multiplied by this. */
+export const OFF_ROLE_REPEAT = 2;
 
 /** Shuffle picks among lineups within this much of the best score. */
 export const SHUFFLE_TOLERANCE = 0.5;

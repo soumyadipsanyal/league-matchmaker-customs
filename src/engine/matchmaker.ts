@@ -7,6 +7,11 @@
  * that keeps the rotation rules), with restarts, under a time budget. Each
  * game's ten is then solved exactly by the Balancer, memoised so the search
  * never solves the same ten twice.
+ *
+ * Main roles first: anyone who was off their main role in the last game they
+ * played is "owed" it, and being off main again costs them double. Games are
+ * filled in order, so game 1's off-roles are owed in game 2, and the result
+ * says who is still owed so the next Make teams can carry it on.
  */
 import { ROLES } from '../lib/roles.ts';
 import { lineupKey, type Placement } from './lineup.ts';
@@ -14,6 +19,7 @@ import { lineupKey, type Placement } from './lineup.ts';
 export { lineupKey, type Placement };
 import { Balancer, maskOf, type Lineup, type SlotMatrix } from './balance.ts';
 import { SEARCH_TIME_MS, SHUFFLE_TOLERANCE } from './constants.ts';
+import { rolePenalty } from './score.ts';
 import { makeRng, randInt, shuffleInPlace, type Rng } from './rng.ts';
 import { SEATS, scheduleFromOrder, scheduleKey, sitOutsPerGame, type Schedule } from './rotation.ts';
 
@@ -32,6 +38,8 @@ export interface MatchRequest {
   avoid?: string[];
   tolerance?: number;
   timeBudgetMs?: number;
+  /** Players owed their main role: off it in the last game they played (from teams made earlier this visit). */
+  priority?: string[];
 }
 
 export interface MatchGame {
@@ -39,6 +47,8 @@ export interface MatchGame {
   red: Placement[];
   out: string[];
   score: number;
+  /** Best score possible for this game's ten (with who was owed a main role at that point). */
+  best: number;
 }
 
 export interface MatchResult {
@@ -49,24 +59,26 @@ export interface MatchResult {
   bestTotal: number;
   ms: number;
   tensSolved: number;
+  /** Who is owed their main role after the last game: pass as `priority` next time. */
+  owed: string[];
 }
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
-function toMatrix(players: MatchPlayer[]): SlotMatrix {
+function toMatrix(players: MatchPlayer[], owed: ReadonlySet<number>): SlotMatrix {
   const n = players.length;
   const value = new Float64Array(n * 5);
-  const steps = new Float64Array(n * 5);
-  const unlisted = new Uint8Array(n * 5);
+  const penalty = new Float64Array(n * 5);
   players.forEach((p, i) =>
     p.slots.forEach((s, r) => {
       value[i * 5 + r] = s.value;
-      steps[i * 5 + r] = s.steps;
-      unlisted[i * 5 + r] = s.unlisted ? 1 : 0;
+      penalty[i * 5 + r] = rolePenalty(s, owed.has(i));
     }),
   );
-  return { n, value, steps, unlisted };
+  return { n, value, penalty };
 }
+
+const owedKey = (owed: ReadonlySet<number>) => [...owed].sort((a, b) => a - b).join(',');
 
 interface Visited {
   schedule: Schedule;
@@ -76,9 +88,50 @@ interface Visited {
 interface Search {
   key: string;
   players: MatchPlayer[];
+  /** Balancer with the owed players at the start of the night. */
   balancer: Balancer;
   visited: Map<string, Visited>;
   best: Visited;
+  /** Owed at the start of the night (player indices). */
+  owed: Set<number>;
+  /** Balancers for other owed sets, as later games need them. */
+  balancers: Map<string, Balancer>;
+}
+
+function balancerFor(s: Search, owed: ReadonlySet<number>): Balancer {
+  const k = owedKey(owed);
+  if (k === owedKey(s.owed)) return s.balancer;
+  let b = s.balancers.get(k);
+  if (!b) {
+    b = new Balancer(toMatrix(s.players, owed));
+    s.balancers.set(k, b);
+  }
+  return b;
+}
+
+/**
+ * Fills each game of a schedule in order. `choose` picks the lineup for a
+ * game given the balancer for whoever is owed a main role by then.
+ */
+function playNight(
+  s: Search,
+  schedule: Schedule,
+  choose: (bal: Balancer, ten: number[], g: number) => Lineup,
+): { games: { lineup: Lineup; out: number[]; best: number }[]; owed: Set<number> } {
+  const n = s.players.length;
+  const owed = new Set(s.owed);
+  const games = schedule.map((out, g) => {
+    const bal = balancerFor(s, owed);
+    const ten = playingIn(n, out);
+    const lineup = choose(bal, ten, g);
+    const best = bal.best(ten);
+    // Whoever played: owed next time if off main now, square again if on main.
+    const settle = (p: number, r: number) => (s.players[p].slots[r].steps > 0 ? owed.add(p) : owed.delete(p));
+    lineup.blue.forEach(settle);
+    lineup.red.forEach(settle);
+    return { lineup, out, best };
+  });
+  return { games, owed };
 }
 
 const playingIn = (n: number, out: readonly number[]) => {
@@ -86,9 +139,10 @@ const playingIn = (n: number, out: readonly number[]) => {
   return Array.from({ length: n }, (_, i) => i).filter((i) => !o.has(i));
 };
 
-function searchSchedules(players: MatchPlayer[], games: number, rng: Rng, budgetMs: number): Search {
+function searchSchedules(players: MatchPlayer[], games: number, rng: Rng, budgetMs: number, owed: Set<number>): Search {
   const n = players.length;
-  const balancer = new Balancer(toMatrix(players));
+  const balancer = new Balancer(toMatrix(players, owed));
+  const base = { players, balancer, owed, balancers: new Map<string, Balancer>(), key: '' };
   const visited = new Map<string, Visited>();
   const evalSchedule = (schedule: Schedule): Visited => {
     const key = scheduleKey(schedule);
@@ -104,9 +158,9 @@ function searchSchedules(players: MatchPlayer[], games: number, rng: Rng, budget
   const identity = Array.from({ length: n }, (_, i) => i);
   if (k === 0) {
     const best = evalSchedule(scheduleFromOrder(identity, games));
-    return { key: '', players, balancer, visited, best };
+    return { ...base, visited, best };
   }
-  if (binomial(n, k) <= EXACT_TENS_LIMIT) return exactSearch(players, games, balancer);
+  if (binomial(n, k) <= EXACT_TENS_LIMIT) return { ...base, ...exactSearch(players, games, balancer) };
 
   // Exact total if it can be at most `cutoff`, else null. Tens that can't
   // beat what's left of the cutoff stop searching early (Balancer.bestBelow).
@@ -207,7 +261,7 @@ function searchSchedules(players: MatchPlayer[], games: number, rng: Rng, budget
     // On small nights every schedule is soon seen; stop rather than spin.
     barren = visited.size === seen ? barren + 1 : 0;
   }
-  return { key: '', players, balancer, visited, best };
+  return { ...base, visited, best };
 }
 
 /** Up to this many possible tens (14 players), every ten is solved and every schedule checked. */
@@ -256,7 +310,7 @@ function validSitOuts(n: number, k: number, count: number[], prev: ReadonlySet<n
   return [];
 }
 
-function exactSearch(players: MatchPlayer[], games: number, balancer: Balancer): Search {
+function exactSearch(players: MatchPlayer[], games: number, balancer: Balancer): { visited: Map<string, Visited>; best: Visited } {
   const n = players.length;
   const k = sitOutsPerGame(n);
   const strict = 2 * k <= n;
@@ -296,15 +350,15 @@ function exactSearch(players: MatchPlayer[], games: number, balancer: Balancer):
   const visited = new Map<string, Visited>();
   for (const v of near) if (v.total <= bestTotal + tol + 1e-9) visited.set(scheduleKey(v.schedule), v);
   if (!found.best) throw new Error('No schedule keeps the sit-out rules.');
-  return { key: '', players, balancer, visited, best: found.best };
+  return { visited, best: found.best };
 }
 
-function toGame(players: MatchPlayer[], l: Lineup, out: readonly number[], flip: boolean): MatchGame {
+function toGame(players: MatchPlayer[], l: Lineup, out: readonly number[], flip: boolean, best = l.score): MatchGame {
   const place = (idx: number[]): Placement[] =>
     idx.map((p, r) => ({ name: players[p].name, role: ROLES[r], champ: players[p].slots[r].champ }));
   const blue = place(flip ? l.red : l.blue);
   const red = place(flip ? l.blue : l.red);
-  return { blue, red, out: out.map((p) => players[p].name).sort((a, b) => a.localeCompare(b)), score: l.score };
+  return { blue, red, out: out.map((p) => players[p].name).sort((a, b) => a.localeCompare(b)), score: l.score, best };
 }
 
 /** Keeps the last search so Shuffle doesn't have to start again. */
@@ -317,22 +371,22 @@ export function createMatchmaker() {
     if (players.length < SEATS) throw new Error(`Need at least ${SEATS} players, got ${players.length}.`);
     if (games < 1 || games > 3) throw new Error('Games must be 1, 2 or 3.');
     const tol = req.tolerance ?? SHUFFLE_TOLERANCE;
-    const key = JSON.stringify([players, games]);
-    const n = players.length;
+    const names = new Map(players.map((p, i) => [p.name, i]));
+    const startOwed = new Set((req.priority ?? []).map((nm) => names.get(nm)).filter((i): i is number => i !== undefined));
+    const key = JSON.stringify([players, games, owedKey(startOwed)]);
+    const owedNames = (o: Set<number>) => [...o].map((i) => players[i].name).sort((a, b) => a.localeCompare(b));
 
     if (req.mode === 'make' || !last || last.key !== key) {
       const rng = makeRng(req.mode === 'make' ? 1 : (req.seed ?? 1));
-      last = searchSchedules(players, games, rng, req.timeBudgetMs ?? SEARCH_TIME_MS);
+      last = searchSchedules(players, games, rng, req.timeBudgetMs ?? SEARCH_TIME_MS, startOwed);
       last.key = key;
     }
     const s = last;
 
     if (req.mode === 'make') {
-      const out = s.best.schedule.map((o) => {
-        const [l] = s.balancer.search(playingIn(n, o));
-        return toGame(players, l, o, false);
-      });
-      return { games: out, changed: true, bestTotal: s.best.total, ms: now() - t0, tensSolved: s.balancer.solved };
+      const night = playNight(s, s.best.schedule, (bal, ten) => bal.search(ten)[0]);
+      const out = night.games.map((g) => toGame(players, g.lineup, g.out, false, g.best));
+      return { games: out, changed: true, bestTotal: s.best.total, ms: now() - t0, tensSolved: s.balancer.solved, owed: owedNames(night.owed) };
     }
 
     // Shuffle: a near-best schedule, then a near-best lineup for each game, different from now if possible.
@@ -340,30 +394,34 @@ export function createMatchmaker() {
     const avoid = req.avoid ?? [];
     const near = [...s.visited.values()].filter((v) => v.total <= s.best.total + tol + 1e-9);
     shuffleInPlace(rng, near);
-    const candidatesFor = new Map<number, Lineup[]>();
-    const lineupsFor = (o: number[]) => {
-      const ten = playingIn(n, o);
+    const candidates = new Map<Balancer, Map<number, Lineup[]>>();
+    const lineupsFor = (bal: Balancer, ten: number[]) => {
+      const byTen = candidates.get(bal) ?? new Map<number, Lineup[]>();
+      candidates.set(bal, byTen);
       const m = maskOf(ten);
-      let c = candidatesFor.get(m);
+      let c = byTen.get(m);
       if (!c) {
-        c = s.balancer.search(ten, tol, 60);
-        candidatesFor.set(m, c);
+        c = bal.search(ten, tol, 60);
+        byTen.set(m, c);
       }
       return c;
     };
 
-    let fallback: MatchGame[] | null = null;
+    let fallback: { games: MatchGame[]; owed: string[] } | null = null;
     for (const v of near) {
-      const result = v.schedule.map((o, g) => {
-        const options = lineupsFor(o).map((l) => toGame(players, l, o, rng() < 0.5));
-        const fresh = options.filter((x) => lineupKey(x) !== avoid[g]);
+      const night = playNight(s, v.schedule, (bal, ten, g) => {
+        const options = lineupsFor(bal, ten);
+        const out = v.schedule[g];
+        const fresh = options.filter((l) => lineupKey(toGame(players, l, out, false)) !== avoid[g]);
         const pool = fresh.length ? fresh : options;
         return pool[randInt(rng, pool.length)];
       });
+      const result = night.games.map((g) => toGame(players, g.lineup, g.out, rng() < 0.5, g.best));
       const changed = result.some((g, i) => lineupKey(g) !== avoid[i]);
-      if (changed) return { games: result, changed, bestTotal: s.best.total, ms: now() - t0, tensSolved: s.balancer.solved };
-      fallback ??= result;
+      const owed = owedNames(night.owed);
+      if (changed) return { games: result, changed, bestTotal: s.best.total, ms: now() - t0, tensSolved: s.balancer.solved, owed };
+      fallback ??= { games: result, owed };
     }
-    return { games: fallback ?? [], changed: false, bestTotal: s.best.total, ms: now() - t0, tensSolved: s.balancer.solved };
+    return { games: fallback?.games ?? [], changed: false, bestTotal: s.best.total, ms: now() - t0, tensSolved: s.balancer.solved, owed: fallback?.owed ?? [] };
   };
 }

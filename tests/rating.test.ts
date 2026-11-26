@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_STEP_DROP } from '../src/engine/constants.ts';
+import { DEFAULT_STEP_DROP, OFF_ROLE_REPEAT, WEIGHTS } from '../src/engine/constants.ts';
 import { placedSlot, roleRating, slotFor } from '../src/engine/rating.ts';
-import { scoreLineup } from '../src/engine/score.ts';
+import { rolePenalty, scoreLineup } from '../src/engine/score.ts';
 import { Balancer } from '../src/engine/balance.ts';
 import { ROLES } from '../src/lib/roles.ts';
 import { otId } from '../src/lib/roster.ts';
@@ -91,9 +91,23 @@ describe('game score', () => {
     expect(n.maxLane).toBe(1);
     expect(n.avgLane).toBeCloseTo(0.625, 10);
     expect(n.steps).toBe(4);
+    expect(n.offMain).toBe(3);
     expect(n.unlisted).toBe(1);
-    // 4×3 + 1×1 + 0.4×0.625 + 0.6×4 + 10×1
-    expect(n.score).toBeCloseTo(12 + 1 + 0.25 + 2.4 + 10, 10);
+    // 4×3 + 1×1 + 0.4×0.625, then each off-main placement (1, 2 and 1 steps) and the unlisted one.
+    const off = (steps: number) => WEIGHTS.offMain + WEIGHTS.steps * steps;
+    expect(n.score).toBeCloseTo(12 + 1 + 0.25 + off(1) + off(2) + off(1) + WEIGHTS.unlisted, 10);
+  });
+
+  it('puts main roles ahead of perfect balance', () => {
+    // One player one step off main costs more than a 0.5 gap between team totals.
+    expect(rolePenalty({ steps: 1, unlisted: false })).toBeGreaterThan(WEIGHTS.teamGap * 0.5);
+    expect(rolePenalty({ steps: 0, unlisted: false })).toBe(0);
+  });
+
+  it('doubles the cost for someone who was off main last game too', () => {
+    const once = rolePenalty({ steps: 1, unlisted: false });
+    expect(rolePenalty({ steps: 1, unlisted: false }, true)).toBeCloseTo(once * OFF_ROLE_REPEAT, 10);
+    expect(rolePenalty({ steps: 0, unlisted: false }, true)).toBe(0);
   });
 });
 
@@ -125,8 +139,7 @@ describe('balancer', () => {
     const m = {
       n: 10,
       value: new Float64Array(players.flatMap((p) => p.slots.map((x) => x.value))),
-      steps: new Float64Array(players.flatMap((p) => p.slots.map((x) => x.steps))),
-      unlisted: new Uint8Array(players.flatMap((p) => p.slots.map((x) => (x.unlisted ? 1 : 0)))),
+      penalty: new Float64Array(players.flatMap((p) => p.slots.map((x) => rolePenalty(x)))),
     };
     const [best] = new Balancer(m).search([...Array(10).keys()]);
     expect(best.score).toBeCloseTo(brute, 9);

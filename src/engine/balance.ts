@@ -17,8 +17,8 @@ const ROLE_COUNT = 5;
 export interface SlotMatrix {
   n: number;
   value: Float64Array;
-  steps: Float64Array;
-  unlisted: Uint8Array;
+  /** Cost of the placement for not being on the player's main role (see rolePenalty). */
+  penalty: Float64Array;
 }
 
 /** A lineup: blue[r] / red[r] = player index playing role r. */
@@ -70,8 +70,6 @@ const EPS = 1e-9;
 const W_GAP = WEIGHTS.teamGap;
 const W_MAX = WEIGHTS.maxLane;
 const W_AVG = WEIGHTS.avgLane / 4;
-const W_STEPS = WEIGHTS.steps;
-const W_UNL = WEIGHTS.unlisted;
 
 const POW2 = Array.from({ length: 53 }, (_, i) => 2 ** i);
 export const maskOf = (players: readonly number[]) => {
@@ -98,8 +96,7 @@ export class Balancer {
 
   // Scratch space reused by every table build.
   private readonly pv = new Float64Array(25);
-  private readonly ps = new Float64Array(25);
-  private readonly pu = new Float64Array(25);
+  private readonly pp = new Float64Array(25);
   private readonly rawOwn = new Float64Array(PERM_COUNT);
   private readonly rawTotal = new Float64Array(PERM_COUNT);
   private readonly order = new Uint8Array(PERM_COUNT);
@@ -114,30 +111,26 @@ export class Balancer {
     const key = maskOf(players);
     const hit = this.teams.get(key);
     if (hit) return hit;
-    const { value, steps, unlisted } = this.m;
-    const { pv, ps, pu, rawOwn, rawTotal, order, keys } = this;
+    const { value, penalty } = this.m;
+    const { pv, pp, rawOwn, rawTotal, order, keys } = this;
     for (let k = 0; k < TEAM_SIZE; k++) {
       const base = players[k] * ROLE_COUNT;
       for (let r = 0; r < ROLE_COUNT; r++) {
         pv[k * 5 + r] = value[base + r];
-        ps[k * 5 + r] = steps[base + r];
-        pu[k * 5 + r] = unlisted[base + r];
+        pp[k * 5 + r] = penalty[base + r];
       }
     }
     let integral = true;
     let maxKey = 0;
     for (let pi = 0; pi < PERM_COUNT; pi++) {
       let tot = 0;
-      let st = 0;
-      let un = 0;
+      let own = 0;
       const o = pi * 5;
       for (let k = 0; k < TEAM_SIZE; k++) {
         const x = k * 5 + ROLE_OF[o + k];
         tot += pv[x];
-        st += ps[x];
-        un += pu[x];
+        own += pp[x];
       }
-      const own = W_STEPS * st + W_UNL * un;
       rawOwn[pi] = own;
       rawTotal[pi] = tot;
       const q = Math.round(own * 10);

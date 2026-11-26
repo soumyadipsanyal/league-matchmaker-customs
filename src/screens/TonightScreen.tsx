@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ADJUST_MAX, ADJUST_STEP, type Adjustments } from '../lib/adjust.ts';
-import { fmt, plural } from '../lib/format.ts';
+import { andList, fmt, plural } from '../lib/format.ts';
 import { ROLE_NAME } from '../lib/roles.ts';
 import { otId, type Player, type PublicPlayer } from '../lib/roster.ts';
 import { ChampIcon, RoleIcon } from '../components/Icons.tsx';
@@ -21,6 +21,8 @@ interface Props {
   onGames: (g: number) => void;
   /** Tonight's adjustments: percentage lower, by player. */
   adjust: Adjustments;
+  /** Off their main role in the last game made on this visit: first in line for it. */
+  owed: string[];
   onAdjust: (name: string, pct: number) => void;
   onResetAdjust: () => void;
   onMake: () => void;
@@ -31,6 +33,7 @@ export function TonightScreen(props: Props) {
   const [adjOpen, setAdjOpen] = useState(false);
   const inTonight = players.filter((p) => selected.has(p.name));
   const adjusted = inTonight.filter((p) => (adjust[p.name] ?? 0) > 0);
+  const firstInLine = inTonight.filter((p) => props.owed.includes(p.name)).map((p) => p.name);
   const count = players.filter((p) => selected.has(p.name)).length;
   const short = Math.max(0, 10 - count);
   const allowedCount = players.reduce((n, p) => n + (selected.has(p.name) ? p.ot.filter((o) => ots.has(otId(p.name, o.key))).length : 0), 0);
@@ -67,8 +70,18 @@ export function TonightScreen(props: Props) {
               <circle cx="12" cy="12" r="9" />
               <path d="M12 11v6M12 7.5v.5" />
             </svg>
-            Only main roles are shown, but all players are considered for secondary roles as well.
+            Only main roles are shown, but all players are considered for secondary roles as well. Main roles come first, ahead of perfectly even
+            teams.
           </p>
+          {firstInLine.length > 0 && (
+            <p className="rolesnote owed">
+              <svg className="gl" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 4v10M7 9l5-5 5 5M5 20h14" />
+              </svg>
+              {andList(firstInLine)} {firstInLine.length === 1 ? 'was' : 'were'} off their main role last game, so they're first in line for it
+              next time you make teams.
+            </p>
+          )}
           <ul className="pgrid">
             {players.map((p) => {
               const on = selected.has(p.name);

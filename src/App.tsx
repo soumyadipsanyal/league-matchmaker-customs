@@ -81,6 +81,9 @@ export function App() {
   const [ots, setOts] = useState<Set<string>>(sel.ots);
   const [games, setGames] = useState<number>(sel.games);
   const [adjust, setAdjust] = useState<Adjustments>(sel.adjust);
+  // Who was off their main role in the last game of teams made on this visit.
+  // Kept in memory only, so a refresh starts afresh.
+  const [owed, setOwed] = useState<string[]>([]);
   const [settings] = useState(initialSettings);
   const [drop, setDrop] = useState<number>(settings.drop);
   const [background, setBackground] = useState<string>(settings.background);
@@ -108,7 +111,10 @@ export function App() {
   useEffect(() => save('selection', { players: [...selected], ots: [...ots], games, adjust } satisfies SavedSelection), [selected, ots, games, adjust]);
   useEffect(() => save('settings', { drop, background } satisfies SavedSettings), [drop, background]);
   const backdrop = background === 'none' ? null : background === 'random' ? RANDOM_BACKGROUND : background;
-  useEffect(() => save('teams', teams ? { games: teams.games, players: teams.players, allowed: teams.allowed, adjust: teams.adjust } : null), [teams]);
+  useEffect(
+    () => save('teams', teams ? { games: teams.games, players: teams.players, allowed: teams.allowed, adjust: teams.adjust, priority: teams.priority } : null),
+    [teams],
+  );
 
   const go = (s: Screen) => {
     if (window.location.hash !== `#${s}`) window.location.hash = s;
@@ -132,17 +138,20 @@ export function App() {
     if (names.length < 10) return;
     const allowed = new Set([...ots].filter((id) => selected.has(playerOf(id))));
     const tonight = cleanAdjustments(adjust, NAMES, names);
+    const priority = owed.filter((n) => names.includes(n));
     setBusy('make');
     setMakeError('');
     try {
-      const res = await runMatch({ players: buildMatchPlayers(names, ROSTER, allowed, drop, tonight), games, mode: 'make' });
+      const res = await runMatch({ players: buildMatchPlayers(names, ROSTER, allowed, drop, tonight), games, mode: 'make', priority });
       setTeams((t) => ({
         games: res.games.map((g) => ({ blue: g.blue, red: g.red, out: g.out })),
         players: names,
         allowed: [...allowed],
         adjust: tonight,
+        priority,
         seq: (t?.seq ?? 0) + 1,
       }));
+      setOwed(res.owed);
       setGameIndex(0);
       setNotice('');
       go('teams');
@@ -166,11 +175,13 @@ export function App() {
         mode: 'shuffle',
         seed,
         avoid: teams.games.map(lineupKey),
+        priority: teams.priority,
       });
       if (!res.changed) {
         setNotice('No other lineup is close enough to the fairest one, so these teams stay.');
       } else {
         setTeams((t) => (t ? { ...t, games: res.games.map((g) => ({ blue: g.blue, red: g.red, out: g.out })), seq: t.seq + 1 } : t));
+        setOwed(res.owed);
         setNotice('Shuffled. Every game is still within 0.5 of its fairest lineup.');
       }
     } catch (e) {
@@ -207,6 +218,7 @@ export function App() {
             onClear={() => setSelected(new Set())}
             onGames={setGames}
             adjust={adjust}
+            owed={owed}
             onAdjust={(name, pct) => setAdjust((a) => cleanAdjustments({ ...a, [name]: pct }, NAMES))}
             onResetAdjust={() => setAdjust({})}
             onMake={make}

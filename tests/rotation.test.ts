@@ -4,7 +4,7 @@ import { lineupKey } from '../src/engine/lineup.ts';
 import { makeRng, shuffleInPlace } from '../src/engine/rng.ts';
 import { scheduleFromOrder, scheduleProblem, type Schedule } from '../src/engine/rotation.ts';
 import { ROLES } from '../src/lib/roles.ts';
-import { syntheticRoster, toMatch } from './helpers.ts';
+import { player, syntheticRoster, toMatch } from './helpers.ts';
 
 /** Checks the sit-out rules directly, independently of scheduleProblem. */
 function checkRules(n: number, schedule: Schedule) {
@@ -54,6 +54,47 @@ describe('sit-out rotation', () => {
   });
 });
 
+describe('main roles first', () => {
+  // Three mid mains who can also support, one support main, and two each of
+  // top, jungle and ADC: exactly one mid main has to play support.
+  const ten = [
+    player('M1', 5, { mid: 0, sp: 1 }),
+    player('M2', 5, { mid: 0, sp: 1 }),
+    player('M3', 5, { mid: 0, sp: 1 }),
+    player('S1', 5, { sp: 0 }),
+    player('T1', 5, { top: 0 }),
+    player('T2', 5, { top: 0 }),
+    player('J1', 5, { jg: 0 }),
+    player('J2', 5, { jg: 0 }),
+    player('A1', 5, { adc: 0 }),
+    player('A2', 5, { adc: 0 }),
+  ];
+  const offMain = (g: { blue: { name: string; role: string }[]; red: { name: string; role: string }[] }) =>
+    [...g.blue, ...g.red].filter((p) => p.role === 'sp' && p.name.startsWith('M')).map((p) => p.name);
+
+  it('gives the main role to whoever was off it last time', () => {
+    const first = createMatchmaker()({ players: toMatch(ten), games: 1, mode: 'make' });
+    const [x] = offMain(first.games[0]);
+    expect(x).toBeDefined();
+    expect(first.owed).toEqual([x]);
+    const next = createMatchmaker()({ players: toMatch(ten), games: 1, mode: 'make', priority: [x] });
+    const off = offMain(next.games[0]);
+    expect(off).toHaveLength(1);
+    expect(off[0]).not.toBe(x);
+    expect(next.owed).toEqual(off);
+  });
+
+  it('never leaves the same player off their main role two games running', () => {
+    const res = createMatchmaker()({ players: toMatch(ten), games: 3, mode: 'make' });
+    const offs = res.games.map((g) => offMain(g));
+    for (let g = 1; g < offs.length; g++) {
+      expect(offs[g]).toHaveLength(1);
+      expect(offs[g][0]).not.toBe(offs[g - 1][0]);
+    }
+    expect(res.owed).toEqual(offs[2]);
+  });
+});
+
 describe('matchmaker', () => {
   const cases: [number, number][] = [
     [10, 3],
@@ -96,9 +137,8 @@ describe('matchmaker', () => {
       const res = run({ players, games: 2, mode: 'shuffle', seed, avoid: before });
       expect(res.changed).toBe(true);
       expect(res.games.map(lineupKey)).not.toEqual(before);
-      // A near-best schedule (≤ best + 0.5), then a lineup ≤ 0.5 above the best for each game's ten.
-      const total = res.games.reduce((s, g) => s + g.score, 0);
-      expect(total).toBeLessThanOrEqual(made.bestTotal + 0.5 + 2 * 0.5 + 1e-9);
+      // Each game's lineup is within 0.5 of the best for that game's ten.
+      for (const g of res.games) expect(g.score).toBeLessThanOrEqual(g.best + 0.5 + 1e-9);
     }
   });
 

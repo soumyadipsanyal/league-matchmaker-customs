@@ -118,6 +118,14 @@ main > .band {
   width: 18px;
   height: 18px;
   color: var(--sand);
+  flex: none;
+}
+.rolesnote.owed {
+  margin-top: -6px;
+  color: var(--ink);
+}
+.rolesnote.owed .gl {
+  color: var(--teal);
 }
 h1,
 h2,

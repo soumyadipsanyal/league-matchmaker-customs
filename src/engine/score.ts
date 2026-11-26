@@ -1,10 +1,20 @@
-import { WEIGHTS } from './constants.ts';
+import { OFF_ROLE_REPEAT, WEIGHTS } from './constants.ts';
 
 /** The parts of a slot that scoring needs. */
 export interface ScoredSlot {
   value: number;
   steps: number;
   unlisted: boolean;
+}
+
+/**
+ * What a placement costs for not being on the player's main role: a flat cost
+ * for being off main plus a cost per step, doubled for someone who was also
+ * off main last game; and a large cost for a role they don't list at all.
+ */
+export function rolePenalty(s: { steps: number; unlisted: boolean }, offLastGame = false): number {
+  const off = s.steps > 0 ? (WEIGHTS.offMain + WEIGHTS.steps * s.steps) * (offLastGame ? OFF_ROLE_REPEAT : 1) : 0;
+  return off + (s.unlisted ? WEIGHTS.unlisted : 0);
 }
 
 export interface LaneGaps {
@@ -23,6 +33,8 @@ export interface GameNumbers {
   maxLane: number;
   avgLane: number;
   steps: number;
+  /** Players not on their main role. */
+  offMain: number;
   unlisted: number;
   score: number;
 }
@@ -46,9 +58,11 @@ export function scoreLineup(blue: readonly ScoredSlot[], red: readonly ScoredSlo
   const avgLane = gaps.reduce((s, g) => s + g, 0) / gaps.length;
   const all = [...blue, ...red];
   const steps = all.reduce((s, x) => s + x.steps, 0);
+  const offMain = all.filter((x) => x.steps > 0).length;
   const unlisted = all.filter((x) => x.unlisted).length;
+  const penalties = all.reduce((s, x) => s + rolePenalty(x), 0);
   const teamGap = Math.abs(blueTotal - redTotal);
   const score =
-    WEIGHTS.teamGap * teamGap + WEIGHTS.maxLane * maxLane + WEIGHTS.avgLane * avgLane + WEIGHTS.steps * steps + WEIGHTS.unlisted * unlisted;
-  return { blueTotal, redTotal, teamGap, lanes, maxLane, avgLane, steps, unlisted, score };
+    WEIGHTS.teamGap * teamGap + WEIGHTS.maxLane * maxLane + WEIGHTS.avgLane * avgLane + penalties;
+  return { blueTotal, redTotal, teamGap, lanes, maxLane, avgLane, steps, offMain, unlisted, score };
 }
