@@ -123,3 +123,40 @@ describe('match history', () => {
     expect(s.other).toEqual(['assets/history/2026-11-26/team-photo.jpg']);
   });
 });
+
+describe('turret damage and the role filter', () => {
+  // Made-up numbers: Ann plays mid in game 1 and jungle in game 2.
+  const withRoles = (g: StatGame, roles: string[], turrets: (number | null)[]): StatGame => ({
+    ...g,
+    blue: g.blue.map((l, i) => ({ ...l, role: roles[i] as StatLine['role'], turrets: turrets[i] })),
+    red: g.red.map((l, i) => ({ ...l, role: (['top', 'jg', 'mid', 'adc', 'sp'] as const)[i] })),
+  });
+  const g1 = withRoles(game, ['mid', 'jg', 'top', 'adc', 'sp'], [3000, 1000, 5000, 4000, 0]);
+  const g2 = withRoles({ ...game, game: 2, winner: 'red', duration: '20:00' }, ['jg', 'mid', 'top', 'adc', 'sp'], [6000, 2000, null, 1000, 500]);
+  const night = [{ date: '2026-11-26', games: [g1, g2] }];
+
+  it('averages turret damage over the games that recorded it', () => {
+    const { players } = aggregate(night);
+    expect(players.find((p) => p.player === 'Ann')!.turretDmg).toBeCloseTo((3000 + 6000) / 2, 10);
+    expect(players.find((p) => p.player === 'Cy')!.turretDmg).toBeCloseTo(5000, 10);
+    expect(players.find((p) => p.player === 'Fi')!.turretDmg).toBeNull();
+  });
+
+  it('keeps only the games each player spent in the chosen role', () => {
+    const jungle = aggregate(night, 'jg');
+    const ann = jungle.players.find((p) => p.player === 'Ann')!;
+    expect(ann).toMatchObject({ games: 1, wins: 0, losses: 1, champs: [['Ahri', 1]] });
+    expect(ann.turretDmg).toBeCloseTo(6000, 10);
+    // KP% still compares with the whole team in that game.
+    expect(ann.kp).toBeCloseTo((5 + 7) / 20, 10);
+    expect(jungle.players.map((p) => p.player).sort()).toEqual(['Ann', 'Bo', 'Gu']);
+    expect(jungle.champs.map((c) => c.champ).sort()).toEqual(['Ahri', 'Lee Sin', 'Udyr']);
+    // All roles together still adds up to every game.
+    expect(aggregate(night).players.find((p) => p.player === 'Ann')!.games).toBe(2);
+  });
+
+  it('rejects a bad turret number', () => {
+    const bad = { nights: [{ date: '2026-11-26', games: [{ ...g1, blue: [{ ...g1.blue[0], turrets: -5 }, ...g1.blue.slice(1)] }] }] };
+    expect(validateStats(bad).join(' ')).toMatch(/"turrets" must be a number or null/);
+  });
+});

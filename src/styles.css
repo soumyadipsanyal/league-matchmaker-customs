@@ -1697,6 +1697,36 @@ img.dgl {
 }
 
 /* ---------- stats ---------- */
+.roletabs {
+  flex-wrap: wrap;
+}
+.roletabs .tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+}
+.roletabs .gl {
+  width: 18px;
+  height: 18px;
+}
+/* the role pictures are light; darken them on the sand of the selected tab */
+.roletabs .tab[aria-pressed='true'] img.gl {
+  filter: brightness(0);
+  opacity: 0.85;
+}
+.rolenote {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .roletabs .rtname {
+    display: none;
+  }
+  .roletabs .tab {
+    padding: 0 10px;
+  }
+}
 .statbar {
   display: flex;
   flex-wrap: wrap;

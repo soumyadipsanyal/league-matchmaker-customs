@@ -1,8 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import statsData from '../data/match-stats.json';
-import { ChampIcon } from '../components/Icons.tsx';
+import { ChampIcon, RoleIcon } from '../components/Icons.tsx';
 import { plural } from '../lib/format.ts';
 import { nightLabel } from '../lib/history.ts';
+import { ROLES, ROLE_NAME, ROLE_SHORT, type Role } from '../lib/roles.ts';
 import { aggregate, champKey, type ChampRow, type PlayerRow, type StatsFile } from '../lib/stats.ts';
 
 const STATS = statsData as StatsFile;
@@ -14,6 +15,7 @@ const pct: Fmt = (v) => (v === null ? '–' : `${Math.round(v * 100)}%`);
 const dec1: Fmt = (v) => (v === null ? '–' : v.toFixed(1));
 const dec2: Fmt = (v) => (v === null ? '–' : v.toFixed(2));
 const int: Fmt = (v) => (v === null ? '–' : String(Math.round(v)));
+const thou: Fmt = (v) => (v === null ? '–' : Math.round(v).toLocaleString('en-GB'));
 
 interface Col<R> {
   key: string;
@@ -36,6 +38,7 @@ const PLAYER_COLS: Col<PlayerRow>[] = [
   { key: 'dmgShare', label: 'DMG%', title: "Share of the team's damage to champions", value: (r) => r.dmgShare, fmt: pct },
   { key: 'goldShare', label: 'Gold%', title: "Share of the team's gold", value: (r) => r.goldShare, fmt: pct },
   { key: 'dpm', label: 'DPM', title: 'Damage to champions per minute', value: (r) => r.dpm, fmt: int },
+  { key: 'turretDmg', label: 'Turret dmg', title: 'Average damage to turrets per game', value: (r) => r.turretDmg, fmt: thou },
   { key: 'vspm', label: 'VSPM', title: 'Vision score per minute', value: (r) => r.vspm, fmt: dec2 },
 ];
 
@@ -48,6 +51,7 @@ const CHAMP_COLS: Col<ChampRow>[] = [
   { key: 'csm', label: 'CSM', title: 'Creep score per minute', value: (r) => r.csm, fmt: dec1 },
   { key: 'gpm', label: 'GPM', title: 'Gold per minute', value: (r) => r.gpm, fmt: int },
   { key: 'dpm', label: 'DPM', title: 'Damage to champions per minute', value: (r) => r.dpm, fmt: int },
+  { key: 'turretDmg', label: 'Turret dmg', title: 'Average damage to turrets per game', value: (r) => r.turretDmg, fmt: thou },
 ];
 
 function Champ({ name }: { name: string }) {
@@ -128,7 +132,12 @@ function Table<R>({ rows, cols, first, firstLabel, extra, extraLabel, defaultKey
 export function StatsScreen() {
   const [view, setView] = useState<View>('players');
   const [night, setNight] = useState<string>('all');
-  const data = useMemo(() => aggregate(night === 'all' ? NIGHTS : NIGHTS.filter((n) => n.date === night)), [night]);
+  const [role, setRole] = useState<Role | 'all'>('all');
+  const data = useMemo(
+    () => aggregate(night === 'all' ? NIGHTS : NIGHTS.filter((n) => n.date === night), role === 'all' ? null : role),
+    [night, role],
+  );
+  const roleName = role === 'all' ? '' : ROLE_NAME[role].toLowerCase();
 
   return (
     <section className="band">
@@ -168,7 +177,37 @@ export function StatsScreen() {
               </label>
               <span className="pill">{plural(data.games, 'game')}</span>
             </div>
-            {view === 'players' ? (
+            <div className="statbar">
+              <div className="tabs roletabs" role="group" aria-label="Role">
+                <button type="button" className="tab" aria-pressed={role === 'all'} onClick={() => setRole('all')}>
+                  All roles
+                </button>
+                {ROLES.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    className="tab rtab"
+                    aria-pressed={role === r}
+                    aria-label={ROLE_NAME[r]}
+                    title={`Only games played as ${ROLE_NAME[r].toLowerCase()}`}
+                    onClick={() => setRole(r)}
+                  >
+                    <RoleIcon role={r} title="" />
+                    <span className="rtname">{ROLE_SHORT[r]}</span>
+                  </button>
+                ))}
+              </div>
+              {role !== 'all' && (
+                <p className="note rolenote">
+                  Only the games each player spent at {roleName}. KP%, DMG% and Gold% still compare with their whole team.
+                </p>
+              )}
+            </div>
+            {view === 'players' && data.players.length === 0 ? (
+              <p className="note">Nobody has played {roleName} in these games yet.</p>
+            ) : view === 'champs' && data.champs.length === 0 ? (
+              <p className="note">No champions played at {roleName} in these games yet.</p>
+            ) : view === 'players' ? (
               <Table
                 rows={data.players}
                 cols={PLAYER_COLS}
@@ -202,7 +241,8 @@ export function StatsScreen() {
             <p className="note legend">
               <b>KDA</b> (kills + assists) ÷ deaths · <b>CSM</b> creep score per minute · <b>GPM</b> gold per minute · <b>KP%</b> kill participation ·{' '}
               <b>DMG%</b> share of the team's damage to champions · <b>Gold%</b> share of the team's gold · <b>DPM</b> damage per minute ·{' '}
-              <b>VSPM</b> vision score per minute. A dash means the scoreboard didn't show it. Gold diff at 15, first blood and other timeline stats
+              <b>Turret dmg</b> average damage to turrets per game · <b>VSPM</b> vision score per minute. Pick a role to see only the games each
+              player spent in it. A dash means the scoreboard didn't show it. Gold diff at 15, first blood and other timeline stats
               aren't on the post-game scoreboard, so they aren't tracked.
             </p>
           </>

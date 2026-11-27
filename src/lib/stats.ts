@@ -22,6 +22,8 @@ export interface StatLine {
   dmg?: number | null;
   /** Vision score, if the screenshot shows it. */
   vision?: number | null;
+  /** Damage to turrets, if the screenshot shows it. */
+  turrets?: number | null;
 }
 
 export interface StatGame {
@@ -79,7 +81,7 @@ export function validateStats(data: unknown): string[] {
           for (const key of ['k', 'd', 'a', 'cs', 'gold'] as const) {
             if (!Number.isFinite(l?.[key]) || l[key] < 0) errs.push(`${lt}: "${key}" must be a number, 0 or more.`);
           }
-          for (const key of ['dmg', 'vision'] as const) {
+          for (const key of ['dmg', 'vision', 'turrets'] as const) {
             const v = l?.[key];
             if (v !== undefined && v !== null && (!Number.isFinite(v) || v < 0)) errs.push(`${lt}: "${key}" must be a number or null.`);
           }
@@ -107,6 +109,9 @@ interface Totals {
   dmgMinutes: number;
   vision: number;
   visionMinutes: number;
+  /** Only over games where turret damage was recorded. */
+  turrets: number;
+  turretGames: number;
 }
 
 const emptyTotals = (): Totals => ({
@@ -125,6 +130,8 @@ const emptyTotals = (): Totals => ({
   dmgMinutes: 0,
   vision: 0,
   visionMinutes: 0,
+  turrets: 0,
+  turretGames: 0,
 });
 
 export interface Rates {
@@ -145,6 +152,8 @@ export interface Rates {
   goldShare: number | null;
   dpm: number | null;
   vspm: number | null;
+  /** Average damage to turrets per game. */
+  turretDmg: number | null;
 }
 
 function rates(t: Totals): Rates {
@@ -164,6 +173,7 @@ function rates(t: Totals): Rates {
     goldShare: t.teamGold ? t.gold / t.teamGold : null,
     dpm: t.dmgMinutes ? t.dmg / t.dmgMinutes : null,
     vspm: t.visionMinutes ? t.vision / t.visionMinutes : null,
+    turretDmg: t.turretGames ? t.turrets / t.turretGames : null,
   };
 }
 
@@ -187,6 +197,10 @@ function add(t: Totals, line: StatLine, team: StatLine[], won: boolean, minutes:
     t.vision += line.vision;
     t.visionMinutes += minutes;
   }
+  if (typeof line.turrets === 'number') {
+    t.turrets += line.turrets;
+    t.turretGames++;
+  }
 }
 
 export interface PlayerRow extends Rates {
@@ -203,8 +217,12 @@ export interface ChampRow extends Rates {
 
 const countDesc = (m: Map<string, number>): [string, number][] => [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
-/** Per-player and per-champion rows for the given nights. */
-export function aggregate(nights: StatNight[]): { players: PlayerRow[]; champs: ChampRow[]; games: number } {
+/**
+ * Per-player and per-champion rows for the given nights. With a role, only
+ * the games each player spent in that role count (shares such as KP% still
+ * compare with their whole team in those games).
+ */
+export function aggregate(nights: StatNight[], role: Role | null = null): { players: PlayerRow[]; champs: ChampRow[]; games: number } {
   const players = new Map<string, { t: Totals; champs: Map<string, number> }>();
   const champs = new Map<string, { t: Totals; players: Map<string, number> }>();
   let games = 0;
@@ -215,6 +233,7 @@ export function aggregate(nights: StatNight[]): { players: PlayerRow[]; champs: 
       for (const side of ['blue', 'red'] as const) {
         const team = g[side];
         for (const line of team) {
+          if (role && line.role !== role) continue;
           const p = players.get(line.player) ?? { t: emptyTotals(), champs: new Map() };
           add(p.t, line, team, g.winner === side, minutes);
           p.champs.set(line.champ, (p.champs.get(line.champ) ?? 0) + 1);

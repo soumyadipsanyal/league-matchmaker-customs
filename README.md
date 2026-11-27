@@ -128,12 +128,12 @@ Put the screenshots in that folder named by game: `game-1.png`, `game-2.jpg`, an
 
 ## Stats
 
-The **Stats** tab shows gol.gg-style player and champion tables (games, win rate, KDA, average kills/deaths/assists, CS and gold per minute, kill participation, damage and gold share, damage and vision per minute) built from `src/data/match-stats.json`. Each game in that file lists the duration, the winning side and, for each player, the champion, K/D/A, CS, gold and, if the scoreboard shows them, damage to champions and vision score:
+The **Stats** tab shows gol.gg-style player and champion tables (games, win rate, KDA, average kills/deaths/assists, CS and gold per minute, kill participation, damage and gold share, damage per minute, average damage to turrets, vision per minute) built from `src/data/match-stats.json`. Pick a role (Top, Jungle, Mid, ADC, Support) to see only the games each player spent in that role; **All roles** shows the totals. Each game in that file lists the duration, the winning side and, for each player, the champion, role, K/D/A, CS, gold and, if the scoreboard shows them, damage to champions, vision score and damage to turrets:
 
 ```json
 {"nights": [{"date": "2026-11-26", "games": [
   {"game": 1, "duration": "31:24", "winner": "blue",
-   "blue": [{"player": "Alex", "champ": "Master Yi", "role": "jg", "k": 7, "d": 2, "a": 5, "cs": 210, "gold": 12400, "dmg": 18300, "vision": 22}, "...4 more"],
+   "blue": [{"player": "Alex", "champ": "Master Yi", "role": "jg", "k": 7, "d": 2, "a": 5, "cs": 210, "gold": 12400, "dmg": 18300, "vision": 22, "turrets": 4100}, "...4 more"],
    "red":  ["...5 players"]}]}]}
 ```
 
