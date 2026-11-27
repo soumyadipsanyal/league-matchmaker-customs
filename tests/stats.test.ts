@@ -211,10 +211,10 @@ describe('damage taken, first blood and multi-kills', () => {
 
   it('counts first bloods over the games that recorded them', () => {
     const { players } = aggregate(night);
-    expect(players.find((p) => p.player === 'Ann')!.fbRate).toBeCloseTo(0.5, 10);
-    expect(players.find((p) => p.player === 'Fi')!.fbRate).toBeCloseTo(0.5, 10);
-    expect(players.find((p) => p.player === 'Bo')!.fbRate).toBe(0);
-    expect(aggregate([{ date: '2026-11-26', games: [game] }]).players[0].fbRate).toBeNull();
+    expect(players.find((p) => p.player === 'Ann')!.firstBloods).toBe(1);
+    expect(players.find((p) => p.player === 'Fi')!.firstBloods).toBe(1);
+    expect(players.find((p) => p.player === 'Bo')!.firstBloods).toBe(0);
+    expect(aggregate([{ date: '2026-11-26', games: [game] }]).players[0].firstBloods).toBeNull();
   });
 
   it('counts quadras and pentas from the largest multi-kill', () => {

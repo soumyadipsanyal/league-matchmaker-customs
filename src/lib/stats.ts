@@ -228,8 +228,8 @@ export interface Rates {
   turretDmg: number | null;
   /** 0–1: share of the team's damage taken. */
   dtShare: number | null;
-  /** 0–1: share of games where they got first blood. */
-  fbRate: number | null;
+  /** How many first blood kills they got. */
+  firstBloods: number | null;
   /** Games whose largest multi-kill was a quadra / a penta. */
   quadras: number | null;
   pentas: number | null;
@@ -260,7 +260,7 @@ function rates(t: Totals): Rates {
     vspm: t.visionMinutes ? t.vision / t.visionMinutes : null,
     turretDmg: t.turretGames ? t.turrets / t.turretGames : null,
     dtShare: t.teamTaken ? t.taken / t.teamTaken : null,
-    fbRate: t.fbGames ? t.fb / t.fbGames : null,
+    firstBloods: t.fbGames ? t.fb : null,
     quadras: t.multiGames ? t.quadras : null,
     pentas: t.multiGames ? t.pentas : null,
     drakesPg: t.objGames ? t.drakes / t.objGames : null,

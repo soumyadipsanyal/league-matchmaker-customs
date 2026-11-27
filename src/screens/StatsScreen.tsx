@@ -42,7 +42,7 @@ const PLAYER_COLS: Col<PlayerRow>[] = [
   { key: 'dpm', label: 'DPM', title: 'Damage to champions per minute', value: (r) => r.dpm, fmt: int },
   { key: 'turretDmg', label: 'Turret dmg', title: 'Average damage to turrets per game', value: (r) => r.turretDmg, fmt: thou },
   { key: 'vspm', label: 'VSPM', title: 'Vision score per minute', value: (r) => r.vspm, fmt: dec2 },
-  { key: 'fbRate', label: 'FB%', title: 'Share of games where they got the first blood kill', value: (r) => r.fbRate, fmt: pct },
+  { key: 'firstBloods', label: 'FB', title: 'First blood kills', value: (r) => r.firstBloods, fmt: int },
   { key: 'quadras', label: 'Quadras', title: 'Games where their biggest multi-kill was a quadra kill', value: (r) => r.quadras, fmt: int },
   { key: 'pentas', label: 'Pentas', title: 'Games where they got a penta kill', value: (r) => r.pentas, fmt: int },
 ];
@@ -96,7 +96,7 @@ const LEGEND: [string, ReactNode][] = [
   ['dpm', <><b>DPM</b> damage to champions per minute</>],
   ['turretDmg', <><b>Turret dmg</b> average damage to turrets per game</>],
   ['vspm', <><b>VSPM</b> vision score per minute</>],
-  ['fbRate', <><b>FB%</b> share of games where they got the first blood kill (the scoreboard doesn't mark assists)</>],
+  ['firstBloods', <><b>FB</b> first blood kills (the scoreboard doesn't mark assists)</>],
   [
     'quadras',
     <>
