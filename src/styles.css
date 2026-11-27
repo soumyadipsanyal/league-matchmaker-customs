@@ -180,6 +180,13 @@ input:focus-visible {
   max-width: 1240px;
   margin-inline: auto;
 }
+/* Stats: the tables are wide, so use more of a big screen (phones scroll the table as before) */
+.wrap.wide {
+  max-width: 1640px;
+}
+.wrap.wide .legend {
+  max-width: 1240px;
+}
 .sec-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);

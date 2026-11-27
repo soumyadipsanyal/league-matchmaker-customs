@@ -163,7 +163,7 @@ export function StatsScreen() {
 
   return (
     <section className="band">
-      <div className="wrap">
+      <div className="wrap wide">
         <div className="sec-head">
           <h1>Stats</h1>
           <p className="sub">
