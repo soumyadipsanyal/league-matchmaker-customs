@@ -4,7 +4,7 @@ import { ChampIcon, RoleIcon } from '../components/Icons.tsx';
 import { plural } from '../lib/format.ts';
 import { nightLabel } from '../lib/history.ts';
 import { ROLES, ROLE_NAME, ROLE_SHORT, type Role } from '../lib/roles.ts';
-import { aggregate, champKey, type ChampRow, type PlayerRow, type StatsFile } from '../lib/stats.ts';
+import { aggregate, champKey, type ChampRow, type PlayerRow, type Rates, type StatsFile } from '../lib/stats.ts';
 
 const STATS = statsData as StatsFile;
 const NIGHTS = [...STATS.nights].sort((a, b) => b.date.localeCompare(a.date));
@@ -53,6 +53,24 @@ const CHAMP_COLS: Col<ChampRow>[] = [
   { key: 'dpm', label: 'DPM', title: 'Damage to champions per minute', value: (r) => r.dpm, fmt: int },
   { key: 'turretDmg', label: 'Turret dmg', title: 'Average damage to turrets per game', value: (r) => r.turretDmg, fmt: thou },
 ];
+
+/** The jungler's team's objectives, per game: only shown when Jungle is picked. */
+const OBJECTIVE_COLS: Col<Rates>[] = [
+  { key: 'drakesPg', label: 'Drakes', title: 'Elemental drakes their team took per game (Elder not included)', value: (r) => r.drakesPg, fmt: dec1 },
+  { key: 'grubsPg', label: 'Grubs', title: 'Void grubs their team took per game', value: (r) => r.grubsPg, fmt: dec1 },
+  { key: 'heraldsPg', label: 'Heralds', title: 'Rift Heralds their team took per game', value: (r) => r.heraldsPg, fmt: dec1 },
+  { key: 'baronsPg', label: 'Barons', title: 'Barons their team took per game', value: (r) => r.baronsPg, fmt: dec1 },
+  { key: 'eldersPg', label: 'Elders', title: 'Elder dragons their team took per game', value: (r) => r.eldersPg, fmt: dec1 },
+];
+/** Not meaningful for supports. */
+const NOT_FOR_SUPPORT = new Set(['csm', 'turretDmg']);
+
+/** The columns for a role: supports drop CS and turret damage, junglers gain their team's objectives. */
+function colsFor<R extends PlayerRow | ChampRow>(cols: Col<R>[], role: Role | 'all'): Col<R>[] {
+  if (role === 'sp') return cols.filter((c) => !NOT_FOR_SUPPORT.has(c.key));
+  if (role === 'jg') return [...cols, ...OBJECTIVE_COLS];
+  return cols;
+}
 
 function Champ({ name }: { name: string }) {
   return (
@@ -210,7 +228,7 @@ export function StatsScreen() {
             ) : view === 'players' ? (
               <Table
                 rows={data.players}
-                cols={PLAYER_COLS}
+                cols={colsFor(PLAYER_COLS, role)}
                 first={(r) => r.player}
                 firstLabel="Player"
                 extraLabel="Champions"
@@ -230,7 +248,7 @@ export function StatsScreen() {
             ) : (
               <Table
                 rows={data.champs}
-                cols={CHAMP_COLS}
+                cols={colsFor(CHAMP_COLS, role)}
                 first={(r) => r.champ}
                 firstLabel="Champion"
                 extraLabel="Played by"
@@ -242,7 +260,8 @@ export function StatsScreen() {
               <b>KDA</b> (kills + assists) ÷ deaths · <b>CSM</b> creep score per minute · <b>GPM</b> gold per minute · <b>KP%</b> kill participation ·{' '}
               <b>DMG%</b> share of the team's damage to champions · <b>Gold%</b> share of the team's gold · <b>DPM</b> damage per minute ·{' '}
               <b>Turret dmg</b> average damage to turrets per game · <b>VSPM</b> vision score per minute. Pick a role to see only the games each
-              player spent in it. A dash means the scoreboard didn't show it. Gold diff at 15, first blood and other timeline stats
+              player spent in it: Support leaves out CS and turret damage, and Jungle adds the objectives their team took per game (drakes,
+              void grubs, heralds, barons and Elder dragons; the scoreboard shows the team's total, not who took the last hit). A dash means the scoreboard didn't show it. Gold diff at 15, first blood and other timeline stats
               aren't on the post-game scoreboard, so they aren't tracked.
             </p>
           </>

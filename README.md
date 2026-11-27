@@ -128,14 +128,18 @@ Put the screenshots in that folder named by game: `game-1.png`, `game-2.jpg`, an
 
 ## Stats
 
-The **Stats** tab shows gol.gg-style player and champion tables (games, win rate, KDA, average kills/deaths/assists, CS and gold per minute, kill participation, damage and gold share, damage per minute, average damage to turrets, vision per minute) built from `src/data/match-stats.json`. Pick a role (Top, Jungle, Mid, ADC, Support) to see only the games each player spent in that role; **All roles** shows the totals. Each game in that file lists the duration, the winning side and, for each player, the champion, role, K/D/A, CS, gold and, if the scoreboard shows them, damage to champions, vision score and damage to turrets:
+The **Stats** tab shows gol.gg-style player and champion tables (games, win rate, KDA, average kills/deaths/assists, CS and gold per minute, kill participation, damage and gold share, damage per minute, average damage to turrets, vision per minute) built from `src/data/match-stats.json`. Pick a role (Top, Jungle, Mid, ADC, Support) to see only the games each player spent in that role; **All roles** shows the totals. Support leaves out CS per minute and turret damage; Jungle adds the objectives the jungler's team took per game (drakes, void grubs, heralds, barons, Elder dragons). Each game in that file lists the duration, the winning side and, for each player, the champion, role, K/D/A, CS, gold and, if the scoreboard shows them, damage to champions, vision score and damage to turrets:
 
 ```json
 {"nights": [{"date": "2026-11-26", "games": [
   {"game": 1, "duration": "31:24", "winner": "blue",
    "blue": [{"player": "Alex", "champ": "Master Yi", "role": "jg", "k": 7, "d": 2, "a": 5, "cs": 210, "gold": 12400, "dmg": 18300, "vision": 22, "turrets": 4100}, "...4 more"],
-   "red":  ["...5 players"]}]}]}
+   "red":  ["...5 players"],
+   "objectives": {"blue": {"towers": 9, "inhibitors": 2, "barons": 1, "dragons": 3, "elders": 0, "heralds": 1, "grubs": 3},
+                  "red":  {"towers": 2, "inhibitors": 0, "barons": 0, "dragons": 1, "elders": 0, "heralds": 0, "grubs": 0}}}]}]}
 ```
+
+`objectives` (optional) comes from the scoreboard's **Bans + objectives** icons, in this order: towers, inhibitors, barons, dragons, Rift Heralds, void grubs. The dragon count includes any Elder, and the scoreboard doesn't say which were Elder, so `elders` is filled in by hand (it can only happen after a team has taken four dragons).
 
 `npm test` checks the file is well formed. Stats that need the game's timeline (gold difference at 15, first blood) can't come from the post-game scoreboard, so they aren't tracked.
 

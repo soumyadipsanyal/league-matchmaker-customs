@@ -160,3 +160,34 @@ describe('turret damage and the role filter', () => {
     expect(validateStats(bad).join(' ')).toMatch(/"turrets" must be a number or null/);
   });
 });
+
+describe('team objectives', () => {
+  // Made-up numbers. Game 1: blue takes 3 drakes; game 2: blue takes 5 dragons, one of them Elder.
+  const obj = (towers: number, barons: number, dragons: number, elders: number, heralds: number, grubs: number) => ({ towers, inhibitors: 0, barons, dragons, elders, heralds, grubs });
+  const g1: StatGame = { ...game, objectives: { blue: obj(8, 1, 3, 0, 1, 3), red: obj(2, 0, 1, 0, 0, 0) } };
+  const g2: StatGame = { ...game, game: 2, objectives: { blue: obj(9, 2, 5, 1, 0, 1), red: obj(3, 0, 0, 0, 1, 2) } };
+
+  it("averages the player's team's objectives per game, Elder kept apart from drakes", () => {
+    const { players } = aggregate([{ date: '2026-11-26', games: [g1, g2] }]);
+    const bo = players.find((p) => p.player === 'Bo')!;
+    expect(bo.drakesPg).toBeCloseTo((3 + 4) / 2, 10);
+    expect(bo.eldersPg).toBeCloseTo(0.5, 10);
+    expect(bo.baronsPg).toBeCloseTo(1.5, 10);
+    expect(bo.heraldsPg).toBeCloseTo(0.5, 10);
+    expect(bo.grubsPg).toBeCloseTo(2, 10);
+    const gu = players.find((p) => p.player === 'Gu')!;
+    expect(gu.grubsPg).toBeCloseTo(1, 10);
+  });
+
+  it('shows objectives as unknown for games without them', () => {
+    const { players } = aggregate([{ date: '2026-11-26', games: [game] }]);
+    expect(players[0].drakesPg).toBeNull();
+  });
+
+  it('rejects impossible objective numbers', () => {
+    const bad = { nights: [{ date: '2026-11-26', games: [{ ...g1, objectives: { blue: obj(8, 1, 1, 2, 1, 3), red: { ...obj(2, 0, 1, 0, 0, 0), grubs: -1 } } }] }] };
+    const msg = validateStats(bad).join(' ');
+    expect(msg).toMatch(/more Elder dragons than dragons/);
+    expect(msg).toMatch(/red objectives "grubs" must be a whole number/);
+  });
+});

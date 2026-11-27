@@ -20,7 +20,11 @@
             { "player": "Ridwan", "champ": "Viktor", "role": "mid", "k": 7, "d": 11, "a": 7, "cs": 228, "gold": 14063, "dmg": 34204, "vision": 18, "turrets": 3345 },
             { "player": "Siv", "champ": "Aphelios", "role": "adc", "k": 10, "d": 10, "a": 3, "cs": 182, "gold": 12936, "dmg": 25403, "vision": 28, "turrets": 2794 },
             { "player": "Shafi", "champ": "Leona", "role": "sp", "k": 4, "d": 8, "a": 15, "cs": 33, "gold": 10762, "dmg": 14095, "vision": 89, "turrets": 138 }
-          ]
+          ],
+          "objectives": {
+            "blue": { "towers": 10, "inhibitors": 2, "barons": 1, "dragons": 2, "elders": 0, "heralds": 1, "grubs": 3 },
+            "red": { "towers": 1, "inhibitors": 0, "barons": 1, "dragons": 2, "elders": 0, "heralds": 0, "grubs": 0 }
+          }
         },
         {
           "game": 2,
@@ -39,7 +43,11 @@
             { "player": "Swoad", "champ": "Cassiopeia", "role": "mid", "k": 2, "d": 6, "a": 1, "cs": 199, "gold": 8745, "dmg": 16043, "vision": 9, "turrets": 0 },
             { "player": "Shafi", "champ": "Miss Fortune", "role": "adc", "k": 2, "d": 7, "a": 2, "cs": 157, "gold": 9032, "dmg": 14785, "vision": 12, "turrets": 837 },
             { "player": "Shabab", "champ": "Maokai", "role": "sp", "k": 1, "d": 9, "a": 2, "cs": 31, "gold": 6377, "dmg": 11452, "vision": 54, "turrets": 0 }
-          ]
+          ],
+          "objectives": {
+            "blue": { "towers": 10, "inhibitors": 2, "barons": 1, "dragons": 4, "elders": 0, "heralds": 1, "grubs": 3 },
+            "red": { "towers": 0, "inhibitors": 0, "barons": 0, "dragons": 0, "elders": 0, "heralds": 0, "grubs": 0 }
+          }
         },
         {
           "game": 3,
@@ -58,7 +66,11 @@
             { "player": "Subham", "champ": "Viktor", "role": "mid", "k": 2, "d": 5, "a": 12, "cs": 207, "gold": 12317, "dmg": 21399, "vision": 31, "turrets": 8690 },
             { "player": "Swoad", "champ": "Caitlyn", "role": "adc", "k": 11, "d": 8, "a": 5, "cs": 243, "gold": 15851, "dmg": 30718, "vision": 42, "turrets": 11580 },
             { "player": "Siv", "champ": "Pyke", "role": "sp", "k": 8, "d": 9, "a": 11, "cs": 33, "gold": 10377, "dmg": 13122, "vision": 91, "turrets": 1149 }
-          ]
+          ],
+          "objectives": {
+            "blue": { "towers": 2, "inhibitors": 0, "barons": 0, "dragons": 2, "elders": 0, "heralds": 1, "grubs": 1 },
+            "red": { "towers": 10, "inhibitors": 2, "barons": 0, "dragons": 2, "elders": 0, "heralds": 0, "grubs": 2 }
+          }
         }
       ]
     }

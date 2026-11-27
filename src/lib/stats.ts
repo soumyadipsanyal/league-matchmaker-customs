@@ -26,6 +26,21 @@ export interface StatLine {
   turrets?: number | null;
 }
 
+/** A team's objectives, from the scoreboard's "Bans + objectives" icons. */
+export interface TeamObjectives {
+  towers: number;
+  inhibitors: number;
+  barons: number;
+  /** Every dragon, as the scoreboard counts them (Elder included). */
+  dragons: number;
+  /** How many of those dragons were Elder (the scoreboard doesn't say). */
+  elders: number;
+  heralds: number;
+  grubs: number;
+}
+
+export const OBJECTIVE_KEYS = ['towers', 'inhibitors', 'barons', 'dragons', 'elders', 'heralds', 'grubs'] as const;
+
 export interface StatGame {
   game: number;
   /** "mm:ss" */
@@ -33,6 +48,8 @@ export interface StatGame {
   winner: 'blue' | 'red';
   blue: StatLine[];
   red: StatLine[];
+  /** Team objectives, if typed in. */
+  objectives?: { blue: TeamObjectives; red: TeamObjectives };
 }
 
 export interface StatNight {
@@ -67,6 +84,19 @@ export function validateStats(data: unknown): string[] {
       if (!Number.isInteger(g?.game) || g.game < 1) errs.push(`${gt}: "game" must be 1, 2, 3…`);
       if (!(minutesOf(g?.duration ?? '') > 0)) errs.push(`${gt}: "duration" must look like 31:24.`);
       if (g?.winner !== 'blue' && g?.winner !== 'red') errs.push(`${gt}: "winner" must be "blue" or "red".`);
+      if (g?.objectives !== undefined) {
+        for (const side of ['blue', 'red'] as const) {
+          const o = g.objectives?.[side];
+          if (!o || typeof o !== 'object') {
+            errs.push(`${gt}: objectives need "${side}".`);
+            continue;
+          }
+          for (const key of OBJECTIVE_KEYS) {
+            if (!Number.isInteger(o[key]) || o[key] < 0) errs.push(`${gt}: ${side} objectives "${key}" must be a whole number, 0 or more.`);
+          }
+          if (o.elders > o.dragons) errs.push(`${gt}: ${side} can't have more Elder dragons than dragons.`);
+        }
+      }
       for (const side of ['blue', 'red'] as const) {
         const team = g?.[side];
         if (!Array.isArray(team) || team.length !== 5) {
@@ -112,6 +142,13 @@ interface Totals {
   /** Only over games where turret damage was recorded. */
   turrets: number;
   turretGames: number;
+  /** The player's team's objectives, over games where they were typed in. */
+  objGames: number;
+  drakes: number;
+  elders: number;
+  heralds: number;
+  grubs: number;
+  barons: number;
 }
 
 const emptyTotals = (): Totals => ({
@@ -132,6 +169,12 @@ const emptyTotals = (): Totals => ({
   visionMinutes: 0,
   turrets: 0,
   turretGames: 0,
+  objGames: 0,
+  drakes: 0,
+  elders: 0,
+  heralds: 0,
+  grubs: 0,
+  barons: 0,
 });
 
 export interface Rates {
@@ -154,6 +197,12 @@ export interface Rates {
   vspm: number | null;
   /** Average damage to turrets per game. */
   turretDmg: number | null;
+  /** The team's objectives per game (elemental drakes, Elder, heralds, void grubs, barons). */
+  drakesPg: number | null;
+  eldersPg: number | null;
+  heraldsPg: number | null;
+  grubsPg: number | null;
+  baronsPg: number | null;
 }
 
 function rates(t: Totals): Rates {
@@ -174,10 +223,15 @@ function rates(t: Totals): Rates {
     dpm: t.dmgMinutes ? t.dmg / t.dmgMinutes : null,
     vspm: t.visionMinutes ? t.vision / t.visionMinutes : null,
     turretDmg: t.turretGames ? t.turrets / t.turretGames : null,
+    drakesPg: t.objGames ? t.drakes / t.objGames : null,
+    eldersPg: t.objGames ? t.elders / t.objGames : null,
+    heraldsPg: t.objGames ? t.heralds / t.objGames : null,
+    grubsPg: t.objGames ? t.grubs / t.objGames : null,
+    baronsPg: t.objGames ? t.barons / t.objGames : null,
   };
 }
 
-function add(t: Totals, line: StatLine, team: StatLine[], won: boolean, minutes: number) {
+function add(t: Totals, line: StatLine, team: StatLine[], won: boolean, minutes: number, obj?: TeamObjectives) {
   t.games++;
   if (won) t.wins++;
   t.k += line.k;
@@ -200,6 +254,14 @@ function add(t: Totals, line: StatLine, team: StatLine[], won: boolean, minutes:
   if (typeof line.turrets === 'number') {
     t.turrets += line.turrets;
     t.turretGames++;
+  }
+  if (obj) {
+    t.objGames++;
+    t.drakes += obj.dragons - obj.elders;
+    t.elders += obj.elders;
+    t.heralds += obj.heralds;
+    t.grubs += obj.grubs;
+    t.barons += obj.barons;
   }
 }
 
@@ -235,11 +297,11 @@ export function aggregate(nights: StatNight[], role: Role | null = null): { play
         for (const line of team) {
           if (role && line.role !== role) continue;
           const p = players.get(line.player) ?? { t: emptyTotals(), champs: new Map() };
-          add(p.t, line, team, g.winner === side, minutes);
+          add(p.t, line, team, g.winner === side, minutes, g.objectives?.[side]);
           p.champs.set(line.champ, (p.champs.get(line.champ) ?? 0) + 1);
           players.set(line.player, p);
           const c = champs.get(line.champ) ?? { t: emptyTotals(), players: new Map() };
-          add(c.t, line, team, g.winner === side, minutes);
+          add(c.t, line, team, g.winner === side, minutes, g.objectives?.[side]);
           c.players.set(line.player, (c.players.get(line.player) ?? 0) + 1);
           champs.set(line.champ, c);
         }
