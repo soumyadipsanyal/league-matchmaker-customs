@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import statsData from '../data/match-stats.json';
 import { ChampIcon, RoleIcon } from '../components/Icons.tsx';
 import { plural } from '../lib/format.ts';
-import { nightLabel, shortNight } from '../lib/history.ts';
+import { gameDate, nightLabel } from '../lib/history.ts';
 import { load, save } from '../lib/storage.ts';
 import { medals, type Medal } from '../lib/medals.ts';
 import { ROLES, ROLE_NAME, ROLE_SHORT, type Role } from '../lib/roles.ts';
@@ -123,9 +123,10 @@ const NOT_FOR_SUPPORT_RECORDS = new Set<RecordKey>(['csm', 'turretDmg']);
 /** Holders shown on a card before "+N more". */
 const MAX_HOLDERS = 3;
 
-function RecordCard({ r, manyNights }: { r: StatRecord; manyNights: boolean }) {
+function RecordCard({ r }: { r: StatRecord }) {
   const info = RECORD_INFO[r.key];
-  const when = (date: string, game: number) => `Game ${game}${manyNights ? ` · ${shortNight(date)}` : ''}`;
+  // Non-breaking spaces keep "Nov 26, 2026" together if the line wraps.
+  const when = (date: string, game: number) => `Game ${game} · ${gameDate(date).replace(/ /g, '\u00a0')}`;
   const more = r.holders.length - MAX_HOLDERS;
   return (
     <li className="rec">
@@ -165,19 +166,14 @@ function RecordCard({ r, manyNights }: { r: StatRecord; manyNights: boolean }) {
 function Records({ nights, role }: { nights: StatNight[]; role: Role | 'all' }) {
   const recs = useMemo(() => records(nights, role === 'all' ? null : role), [nights, role]);
   const shown = recs.filter((r) => (role === 'jg' || !OBJECTIVE_RECORDS.has(r.key)) && !(role === 'sp' && NOT_FOR_SUPPORT_RECORDS.has(r.key)));
-  const where = role === 'all' ? '' : ` at ${ROLE_NAME[role].toLowerCase()}`;
   return (
     <section className="records" aria-labelledby="records-h">
       <div className="rec-head">
         <h2 id="records-h">Records</h2>
-        <p className="sub">
-          The best single game for each stat{where}, and who did it on what. Ties all count.
-          {role === 'jg' && " Objectives are their team's in that game."}
-        </p>
       </div>
       <ul className="recgrid">
         {shown.map((r) => (
-          <RecordCard key={r.key} r={r} manyNights={nights.length > 1} />
+          <RecordCard key={r.key} r={r} />
         ))}
       </ul>
     </section>
