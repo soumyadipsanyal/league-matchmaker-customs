@@ -387,9 +387,9 @@ const teamShare = (c: LineInGame, key: 'dmg' | 'taken'): number | null => {
 const perMinute = (v: number | null | undefined, minutes: number): number | null => (typeof v === 'number' && minutes > 0 ? v / minutes : null);
 
 /**
- * Every stat that has a single-game record. "flag" stats (first blood, quadra,
- * penta) either happened in a game or didn't, so their record lists everyone
- * who has done it.
+ * Every stat that has a single-game record. A "flag" stat (penta) either
+ * happened in a game or didn't, so its record lists everyone who has done it.
+ * First blood and quadra kills aren't records.
  */
 export const RECORD_STATS = [
   { key: 'kda', value: (c: LineInGame) => (c.line.k + c.line.a) / Math.max(1, c.line.d) },
@@ -417,8 +417,6 @@ export const RECORD_STATS = [
   { key: 'dpm', value: (c: LineInGame) => perMinute(c.line.dmg, c.minutes) },
   { key: 'turretDmg', value: (c: LineInGame) => (typeof c.line.turrets === 'number' ? c.line.turrets : null) },
   { key: 'vspm', value: (c: LineInGame) => perMinute(c.line.vision, c.minutes) },
-  { key: 'firstBlood', flag: true, value: (c: LineInGame) => (typeof c.line.firstBlood === 'boolean' ? Number(c.line.firstBlood) : null) },
-  { key: 'quadra', flag: true, value: (c: LineInGame) => (typeof c.line.multi === 'number' ? Number(c.line.multi === 4) : null) },
   { key: 'penta', flag: true, value: (c: LineInGame) => (typeof c.line.multi === 'number' ? Number(c.line.multi >= 5) : null) },
   // The player's team's objectives in that game (shown for junglers).
   { key: 'drakes', value: (c: LineInGame) => (c.obj ? c.obj.dragons - c.obj.elders : null) },
@@ -440,7 +438,7 @@ export interface RecordHolder {
 
 export interface StatRecord {
   key: RecordKey;
-  /** True for stats that either happened in a game or didn't (first blood, quadra, penta). */
+  /** True for a stat that either happened in a game or didn't (penta). */
   flag: boolean;
   /** The best single-game value; null when no game recorded it, 0 when nobody has done it yet. */
   value: number | null;

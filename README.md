@@ -141,7 +141,7 @@ The **Stats** tab shows gol.gg-style player and champion tables (games, win rate
 
 `objectives` (optional) comes from the scoreboard's **Bans + objectives** icons, in this order: towers, inhibitors, barons, dragons, Rift Heralds, void grubs. The dragon count includes any Elder, and the scoreboard doesn't say which were Elder, so `elders` is filled in by hand (it can only happen after a team has taken four dragons).
 
-In the players table, gold, silver and bronze stars mark the top three in each stat (not games or win rate; fewest for average deaths; ties share a star, and a zero never earns one); Quadras and Pentas only give gold, to everyone tied on the most. Under the tables, **Records** shows the best single game for each stat (every stat except games and win rate), who did it and on which champion; ties all count, and it follows the night and role picked above. `npm test` checks the file is well formed. Stats that need the game's timeline (gold difference at 15, first blood) can't come from the post-game scoreboard, so they aren't tracked.
+In the players table, gold, silver and bronze stars mark the top three in each stat (not games or win rate; fewest for average deaths; ties share a star, and a zero never earns one); Quadras and Pentas only give gold, to everyone tied on the most. Under the tables, **Records** shows the best single game for each stat (every stat except games, win rate, first blood and quadra kills), who did it and on which champion; ties all count, and it follows the night and role picked above. `npm test` checks the file is well formed. Stats that need the game's timeline (gold difference at 15, first blood) can't come from the post-game scoreboard, so they aren't tracked.
 
 ## How teams are made
 

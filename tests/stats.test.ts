@@ -262,9 +262,10 @@ describe('single-game records', () => {
     expect(rec('deaths').holders.map((h) => `${h.player} g${h.game}`)).toEqual(['Hal g1', 'Hal g2']);
   });
 
-  it('lists everyone for first blood and quadras, and nobody for pentas yet', () => {
-    expect(rec('quadra').holders.map((h) => h.player)).toEqual(['Ann']);
-    expect(rec('firstBlood').holders.map((h) => h.player)).toEqual(['Ann']);
+  it('has no first blood or quadra records, and nobody holds the penta record yet', () => {
+    const keys = records(night).map((r) => r.key as string);
+    expect(keys).not.toContain('firstBlood');
+    expect(keys).not.toContain('quadra');
     const penta = rec('penta');
     expect(penta.flag).toBe(true);
     expect(penta.holders).toEqual([]);

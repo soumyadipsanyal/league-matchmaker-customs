@@ -96,61 +96,6 @@ function colsFor<R extends PlayerRow | ChampRow>(cols: Col<R>[], role: Role | 'a
   return out;
 }
 
-/** What each abbreviation means, for the key under the table. */
-const LEGEND: [string, ReactNode][] = [
-  ['kda', <><b>KDA</b> (kills + assists) ÷ deaths</>],
-  ['csm', <><b>CSM</b> creep score per minute</>],
-  ['gpm', <><b>GPM</b> gold per minute</>],
-  ['kp', <><b>KP%</b> kill participation</>],
-  ['dmgShare', <><b>DMG%</b> share of the team's damage to champions</>],
-  ['goldShare', <><b>Gold%</b> share of the team's gold</>],
-  ['dtShare', <><b>DT%</b> share of the team's damage taken</>],
-  ['dpm', <><b>DPM</b> damage to champions per minute</>],
-  ['turretDmg', <><b>Turret dmg</b> average damage to turrets per game</>],
-  ['vspm', <><b>VSPM</b> vision score per minute</>],
-  ['firstBloods', <><b>FB</b> first blood kills (the scoreboard doesn't mark assists)</>],
-  [
-    'quadras',
-    <>
-      <b>Quadras</b> and <b>Pentas</b> games where their biggest multi-kill was a quadra or penta kill (the scoreboard only shows the
-      biggest, so two quadras in one game count once)
-    </>,
-  ],
-  [
-    'drakesPg',
-    <>
-      <b>Drakes</b>, <b>Grubs</b>, <b>Heralds</b>, <b>Barons</b> and <b>Elders</b> the objectives their team took per game (the scoreboard
-      shows the team's total, not who took the last hit)
-    </>,
-  ],
-];
-
-function Legend({ keys, full, stars }: { keys: Set<string>; full: boolean; stars: boolean }) {
-  const items = LEGEND.filter(([k]) => keys.has(k));
-  return (
-    <p className="note legend">
-      {stars && (
-        <span className="starkey">
-          <Star medal={1} />
-          <Star medal={2} />
-          <Star medal={3} /> the top three in each stat (fewest for Avg deaths; ties share a star). Quadras and Pentas only give gold, to
-          everyone tied on the most.{' '}
-        </span>
-      )}
-      {items.map(([k, text], i) => (
-        <span key={k}>
-          {i > 0 && ' · '}
-          {text}
-        </span>
-      ))}
-      {items.length > 0 && '. '}
-      {full
-        ? "Pick a role to see only the games each player spent in it: Support leaves out CS and turret damage, and Jungle adds their team's objectives. A dash means the scoreboard didn't show it. Gold, CS and XP leads at 15 minutes aren't on the post-game scoreboard, so they aren't tracked."
-        : 'Pick a role to see only the games each player spent in it. The full extended version adds gold, damage and vision shares, turret damage, first bloods, multi-kills and, for junglers, objectives.'}
-    </p>
-  );
-}
-
 /** How each single-game record is named and shown. */
 const RECORD_INFO: Record<RecordKey, { label: string; fmt: Fmt }> = {
   kda: { label: 'Highest KDA', fmt: dec1 },
@@ -166,8 +111,6 @@ const RECORD_INFO: Record<RecordKey, { label: string; fmt: Fmt }> = {
   dpm: { label: 'Highest DPM', fmt: int },
   turretDmg: { label: 'Most turret damage', fmt: thou },
   vspm: { label: 'Highest VSPM', fmt: dec2 },
-  firstBlood: { label: 'First blood', fmt: int },
-  quadra: { label: 'Quadra kill', fmt: int },
   penta: { label: 'Penta kill', fmt: int },
   drakes: { label: 'Most drakes', fmt: int },
   grubs: { label: 'Most void grubs', fmt: int },
@@ -335,7 +278,7 @@ function Table<R>({ rows, cols, first, firstLabel, extra, extraLabel, defaultKey
                 const v = c.value(r);
                 const medal = starMap.get(c.key)?.get(first(r));
                 return (
-                  <td key={c.key} className="snum">
+                  <td key={c.key} className={medal ? `snum med${medal}` : 'snum'}>
                     {typeof v === 'number' || v === null ? (c.fmt ?? String)(v as number | null) : v}
                     {medal && <Star medal={medal} />}
                   </td>
@@ -365,7 +308,6 @@ export function StatsScreen() {
     });
   const playerCols = colsFor(PLAYER_COLS, role, full, SHORT_PLAYER);
   const champCols = colsFor(CHAMP_COLS, role, full, SHORT_CHAMP);
-  const shown = new Set((view === 'players' ? playerCols : champCols).map((c) => c.key));
 
   return (
     <section className="band">
@@ -476,7 +418,6 @@ export function StatsScreen() {
                 extra={(r) => r.players.map(([p, n]) => (n > 1 ? `${p} ×${n}` : p)).join(', ')}
               />
             )}
-            <Legend keys={shown} full={full} stars={view === 'players'} />
             <Records nights={nights} role={role} />
           </>
         )}
