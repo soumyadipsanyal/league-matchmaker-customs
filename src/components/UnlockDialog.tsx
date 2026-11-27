@@ -59,7 +59,7 @@ export function UnlockDialog({ open, onClose, onUnlock }: Props) {
     >
       <form onSubmit={submit}>
         <h2 id="unlock-title">Unlock the ratings</h2>
-        <p className="sub">Ratings stay on this page until you lock it, reload or close the tab.</p>
+        <p className="sub">Once unlocked, Unlock works again without the password until you reload or close the tab.</p>
         <label className="field">
           <span>Password</span>
           <input

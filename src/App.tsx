@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import lockedRoster from './data/roster.locked.json';
 import recordsJson from './data/match-records.json';
+import statsJson from './data/match-stats.json';
 import saveLockJson from './data/save-lock.json';
 import { Footer } from './components/Footer.tsx';
 import { Backdrop } from './components/Icons.tsx';
@@ -11,10 +12,20 @@ import { DEFAULT_STEP_DROP, STEP_DROP_MAX, STEP_DROP_MIN } from './engine/consta
 import { lineupKey } from './engine/lineup.ts';
 import { buildMatchPlayers, cleanAdjustments, type Adjustments } from './lib/adjust.ts';
 import { backgroundFiles } from './lib/assets.ts';
-import { readRecords, saveGame, SaveError, type SaveTarget } from './lib/github.ts';
+import { markNightDone, readRecords, saveGame, SaveError, type SaveTarget } from './lib/github.ts';
 import { nightLabel } from './lib/history.ts';
 import { decryptJson, WrongPasswordError } from './lib/lock.ts';
-import { emptyRecords, mergeRecords, nightDate, nightState, recordKey, toRecordGame, validateRecords, type RecordsFile } from './lib/records.ts';
+import {
+  currentNight,
+  emptyRecords,
+  mergeRecords,
+  nightState,
+  recentlyFinished,
+  recordKey,
+  toRecordGame,
+  validateRecords,
+  type RecordsFile,
+} from './lib/records.ts';
 import { mergeRoster, type LockedRosterFile, type SecretRoster } from './lib/roster.ts';
 import type { SaveLockFile, SaveSecret } from './lib/savelock.ts';
 import { unscrambleJson } from './lib/scramble.ts';
@@ -41,6 +52,14 @@ const SAVE_LOCK = saveLockJson as unknown as SaveLockFile;
 const TARGET: SaveTarget = { repo: SAVE_LOCK.repo, branch: SAVE_LOCK.branch, path: SAVE_LOCK.path };
 /** The records as built into this version of the site. */
 const BUNDLED_RECORDS: RecordsFile = validateRecords(recordsJson).length ? emptyRecords() : (recordsJson as RecordsFile);
+/** Nights whose stats have been typed in. */
+const STATS_NIGHTS = new Set((statsJson as { nights: { date: string }[] }).nights.map((n) => n.date));
+
+/** What "All matches done" is doing, for the organiser. */
+interface FinishStatus {
+  state: 'saving' | 'saved' | 'error';
+  message: string;
+}
 
 interface SavedSelection {
   players: string[];
@@ -101,6 +120,10 @@ export function App() {
   const [unlocked, setUnlocked] = useState(false);
   /** Set when the master password was used: the organiser's save token (or null if not set up). */
   const [organiser, setOrganiser] = useState<{ token: string | null } | null>(null);
+  // The last unlock on this visit, so Unlock after Lock needs no password again.
+  // In memory only: a refresh (or closing the tab) forgets it, and it's never saved on the device.
+  const remembered = useRef<{ organiser: { token: string | null } | null } | null>(null);
+  const [finishStatus, setFinishStatus] = useState<FinishStatus | null>(null);
   const [dialog, setDialog] = useState(false);
   const [sel] = useState(initialSelection);
   const [selected, setSelected] = useState<Set<string>>(sel.players);
@@ -126,8 +149,11 @@ export function App() {
   // Screens show numbers only when given this.
   const rated = unlocked ? ROSTER : null;
   const records = useMemo(() => mergeRecords(BUNDLED_RECORDS, recordsCache), [recordsCache]);
-  const today = nightDate();
-  const todayState = useMemo(() => nightState(records.nights.find((n) => n.date === today), MAINS), [records, today]);
+  // Tonight's night: carries on until the organiser presses "All matches done".
+  const today = currentNight(records);
+  const tonight = records.nights.find((n) => n.date === today);
+  const todayState = useMemo(() => nightState(tonight, MAINS), [tonight]);
+  const finished = recentlyFinished(records);
 
   useEffect(() => {
     const onHash = () => {
@@ -187,12 +213,14 @@ export function App() {
     // Try both locks at once: the normal password opens the ratings, the master password the organiser's lock.
     const [normal, master] = await Promise.allSettled([decryptJson<SecretRoster>(LOCKED.lock, password), decryptJson<SaveSecret>(SAVE_LOCK.lock, password)]);
     if (master.status === 'fulfilled') {
+      remembered.current = { organiser: { token: master.value.token } };
       setOrganiser({ token: master.value.token });
       setUnlocked(true);
       setDialog(false);
       return;
     }
     if (normal.status === 'fulfilled') {
+      remembered.current = { organiser: null };
       setOrganiser(null);
       setUnlocked(true);
       setDialog(false);
@@ -206,7 +234,17 @@ export function App() {
     setUnlocked(false);
     setOrganiser(null);
     setSaveStatus(null);
+    setFinishStatus(null);
     setNotice('');
+  };
+
+  /** Unlock again without the password if this visit already unlocked, at the same level. */
+  const onLockClick = () => {
+    if (unlocked) lock();
+    else if (remembered.current) {
+      setOrganiser(remembered.current.organiser);
+      setUnlocked(true);
+    } else setDialog(true);
   };
 
   async function make() {
@@ -221,8 +259,9 @@ export function App() {
       let history: Teams['history'];
       if (useRecord) {
         const fresh = await refreshRecords();
+        const night = currentNight(fresh);
         const st = nightState(
-          fresh.nights.find((n) => n.date === nightDate()),
+          fresh.nights.find((n) => n.date === night),
           MAINS,
         );
         history = { satOut: st.satOut, lastOut: st.lastOut };
@@ -292,18 +331,48 @@ export function App() {
     }
     setSaveStatus({ key, state: 'saving', message: 'Saving to GitHub…' });
     try {
-      const date = nightDate();
-      const res = await saveGame(TARGET, organiser.token, date, game);
+      // The night is worked out from the records on GitHub, so it carries on tonight's games
+      // until "All matches done" is pressed.
+      const res = await saveGame(TARGET, organiser.token, (file) => currentNight(file), game);
       setRecordsCache(res.file);
+      setFinishStatus(null);
       setSaveStatus({
         key,
         state: 'saved',
         message: res.already
-          ? `Already saved as game ${res.number} of ${nightLabel(date)}.`
-          : `Saved as game ${res.number} of ${nightLabel(date)}. It shows in Match history for everyone in about 2 minutes.`,
+          ? `Already saved as game ${res.number} of ${nightLabel(res.date)}.`
+          : `Saved as game ${res.number} of ${nightLabel(res.date)}. It shows in Match history for everyone in about 2 minutes.`,
       });
     } catch (e) {
       setSaveStatus({ key, state: 'error', message: e instanceof SaveError ? e.message : `Couldn't save: ${(e as Error).message}` });
+    }
+  }
+
+  /** Organiser only: marks tonight "all matches done" on GitHub (or reopens it). */
+  async function finishNight() {
+    if (!organiser || !tonight || tonight.games.length === 0) return;
+    if (!organiser.token) {
+      setFinishStatus({ state: 'error', message: "Saving isn't set up yet: the GitHub save token still needs adding (see the README, npm run set-save-token)." });
+      return;
+    }
+    const done = tonight.done !== true;
+    const label = nightLabel(tonight.date);
+    const sure = window.confirm(
+      done
+        ? `Mark ${label} as all matches done?\n\nEveryone will see that tonight's games are over and will be up in Match history and Stats soon. The next game saved starts a new night.`
+        : `Reopen ${label}?\n\nGames saved next will go back into it.`,
+    );
+    if (!sure) return;
+    setFinishStatus({ state: 'saving', message: done ? 'Marking tonight as done…' : 'Reopening tonight…' });
+    try {
+      const res = await markNightDone(TARGET, organiser.token, tonight.date, done);
+      setRecordsCache(res.file);
+      setFinishStatus({
+        state: 'saved',
+        message: done ? `${label}: all matches done. Everyone sees it in about 2 minutes.` : `${label} is open again.`,
+      });
+    } catch (e) {
+      setFinishStatus({ state: 'error', message: e instanceof SaveError ? e.message : `Couldn't save: ${(e as Error).message}` });
     }
   }
 
@@ -315,13 +384,13 @@ export function App() {
   };
 
   const shownGame = teams ? teams.games[Math.min(gameIndex, teams.games.length - 1)] : null;
-  const todaysGames = records.nights.find((n) => n.date === today)?.games ?? [];
+  const todaysGames = tonight?.games ?? [];
   const savedAs = shownGame ? todaysGames.findIndex((g) => recordKey(g) === recordKey(toRecordGame(shownGame))) + 1 : 0;
 
   return (
     <>
       {backdrop && <Backdrop path={backdrop} />}
-      <Header screen={screen} unlocked={unlocked} organiser={Boolean(organiser)} onLockClick={() => (unlocked ? lock() : setDialog(true))} />
+      <Header screen={screen} unlocked={unlocked} organiser={Boolean(organiser)} onLockClick={onLockClick} />
       <main>
         {screen === 'tonight' && (
           <TonightScreen
@@ -342,6 +411,10 @@ export function App() {
             useRecord={useRecord}
             onUseRecord={() => setUseRecord((u) => !u)}
             today={{ label: nightLabel(today), games: todayState.games, lastOut: todayState.lastOut, owed: todayState.owed, note: recordsNote }}
+            organiser={Boolean(organiser)}
+            finish={{ done: tonight?.done === true, canFinish: (tonight?.games.length ?? 0) > 0, status: finishStatus }}
+            onFinish={finishNight}
+            finished={finished ? { label: nightLabel(finished.date), statsUp: STATS_NIGHTS.has(finished.date) } : null}
             onAdjust={(name, pct) => setAdjust((a) => cleanAdjustments({ ...a, [name]: pct }, NAMES))}
             onResetAdjust={() => setAdjust({})}
             onMake={make}

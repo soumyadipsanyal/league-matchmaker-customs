@@ -28,6 +28,13 @@ interface Props {
   onUseRecord: () => void;
   /** Today's saved games, summarised. */
   today: { label: string; games: number; lastOut: string[]; owed: string[]; note: string };
+  /** Unlocked with the master password. */
+  organiser: boolean;
+  /** Tonight's "All matches done" state, for the organiser's button. */
+  finish: { done: boolean; canFinish: boolean; status: { state: 'saving' | 'saved' | 'error'; message: string } | null };
+  onFinish: () => void;
+  /** Set once the organiser has said a night's games are over (for the last day or so). */
+  finished: { label: string; statsUp: boolean } | null;
   onAdjust: (name: string, pct: number) => void;
   onResetAdjust: () => void;
   onMake: () => void;
@@ -87,6 +94,29 @@ export function TonightScreen(props: Props) {
               </span>
               Use today's match record
             </button>
+            {props.organiser && (
+              <button
+                type="button"
+                className="btn ghost sm recbtn donebtn"
+                aria-pressed={props.finish.done}
+                disabled={!props.finish.canFinish || props.finish.status?.state === 'saving'}
+                onClick={props.onFinish}
+                title={
+                  !props.finish.canFinish
+                    ? "Save tonight's games from the Teams tab first."
+                    : props.finish.done
+                      ? 'Tonight is marked done. Press to reopen it.'
+                      : "No more games tonight: they'll be up in Match history and Stats soon."
+                }
+              >
+                <span className="tick" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" className="gl">
+                    <path d="M5 12.5 10 17.5 19 7" />
+                  </svg>
+                </span>
+                All matches done
+              </button>
+            )}
             {props.useRecord && (
               <p className="note recinfo" aria-live="polite">
                 {props.today.games === 0
@@ -97,6 +127,20 @@ export function TonightScreen(props: Props) {
               </p>
             )}
           </div>
+          {props.organiser && props.finish.status && (
+            <p className={`savenote ${props.finish.status.state}`} role="status">
+              {props.finish.status.message}
+            </p>
+          )}
+          {props.finished && (
+            <p className="rolesnote donenote">
+              <svg className="gl" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 21V4M5 4h12l-2.5 4L17 12H5" />
+              </svg>
+              All matches done for {props.finished.label}.{' '}
+              {props.finished.statsUp ? 'The games are up in Match history and Stats.' : 'The games will be up in Match history and Stats soon.'}
+            </p>
+          )}
           {firstInLine.length > 0 && (
             <p className="rolesnote owed">
               <svg className="gl" viewBox="0 0 24 24" aria-hidden="true">

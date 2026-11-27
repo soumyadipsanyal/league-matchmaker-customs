@@ -1678,6 +1678,16 @@ img.dgl {
 .recbtn[aria-pressed='true'] .tick .gl {
   opacity: 1;
 }
+/* "All matches done": gold rather than teal once pressed */
+.donebtn[aria-pressed='true'] {
+  background: var(--sand);
+}
+.donebtn[aria-pressed='true'] .tick {
+  color: var(--sand);
+}
+.rolesnote.donenote {
+  color: var(--ink);
+}
 .recinfo {
   flex: 1 1 260px;
   color: var(--ink);

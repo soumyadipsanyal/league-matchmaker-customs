@@ -1,8 +1,21 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { readRecords, saveGame, SaveError, type SaveTarget } from '../src/lib/github.ts';
+import { markNightDone, readRecords, saveGame, SaveError, type SaveTarget } from '../src/lib/github.ts';
 import { decryptJson, toBase64, WrongPasswordError } from '../src/lib/lock.ts';
-import { addGame, emptyRecords, mergeRecords, nightDate, nightState, recordKey, validateRecords, type RecordGame, type RecordsFile } from '../src/lib/records.ts';
+import {
+  addGame,
+  currentNight,
+  emptyRecords,
+  mergeRecords,
+  nightDate,
+  nightState,
+  recentlyFinished,
+  recordKey,
+  setDone,
+  validateRecords,
+  type RecordGame,
+  type RecordsFile,
+} from '../src/lib/records.ts';
 import { ROLES, type Role } from '../src/lib/roles.ts';
 import type { LockedRosterFile } from '../src/lib/roster.ts';
 import type { SaveLockFile, SaveSecret } from '../src/lib/savelock.ts';
@@ -88,9 +101,9 @@ const target: SaveTarget = { repo: 'me/site', branch: 'main', path: 'src/data/ma
 describe('saving to GitHub', () => {
   it('creates the file, then adds to it', async () => {
     const gh = fakeGitHub();
-    const a = await saveGame(target, 'good', '2026-11-27', g1, gh.f);
+    const a = await saveGame(target, 'good', () => '2026-11-27', g1, gh.f);
     expect(a).toMatchObject({ number: 1, already: false });
-    const b = await saveGame(target, 'good', '2026-11-27', g2, gh.f);
+    const b = await saveGame(target, 'good', () => '2026-11-27', g2, gh.f);
     expect(b).toMatchObject({ number: 2, already: false });
     const { file } = await gh.read();
     expect(file.nights[0].games.map(recordKey)).toEqual([recordKey(g1), recordKey(g2)]);
@@ -99,21 +112,21 @@ describe('saving to GitHub', () => {
 
   it("doesn't save the same game twice", async () => {
     const gh = fakeGitHub({ start: addGame(emptyRecords(), '2026-11-27', g1).file });
-    const res = await saveGame(target, 'good', '2026-11-27', g1, gh.f);
+    const res = await saveGame(target, 'good', () => '2026-11-27', g1, gh.f);
     expect(res).toMatchObject({ number: 1, already: true });
     expect(gh.puts).toHaveLength(0);
   });
 
   it('reads again and retries if someone else saved at the same moment', async () => {
     const gh = fakeGitHub({ start: emptyRecords(), conflictOnce: true });
-    const res = await saveGame(target, 'good', '2026-11-27', g1, gh.f);
+    const res = await saveGame(target, 'good', () => '2026-11-27', g1, gh.f);
     expect(res.already).toBe(false);
     expect(gh.puts.length).toBe(2);
   });
 
   it('explains a refused token', async () => {
     const gh = fakeGitHub();
-    await expect(saveGame(target, 'expired', '2026-11-27', g1, gh.f)).rejects.toBeInstanceOf(SaveError);
+    await expect(saveGame(target, 'expired', () => '2026-11-27', g1, gh.f)).rejects.toBeInstanceOf(SaveError);
   });
 });
 
@@ -140,5 +153,55 @@ describe('master password lock (src/data/save-lock.json)', () => {
 
   it.skipIf(!normal)('the normal password does not open it', async () => {
     await expect(decryptJson(saveLock.lock, normal!)).rejects.toBeInstanceOf(WrongPasswordError);
+  });
+});
+
+describe('"All matches done"', () => {
+  // Made-up nights. Times are local, as on the player's device.
+  const thu = '2026-11-26';
+  const withThursday = addGame(addGame(emptyRecords(), thu, g1).file, thu, g2).file;
+
+  it('keeps tonight open, however late it gets, until it is marked done', () => {
+    expect(currentNight(withThursday, new Date(2026, 10, 26, 23, 0))).toBe(thu);
+    // 9 am on Friday: past the 6 am change of day, but nobody said the night was over.
+    expect(currentNight(withThursday, new Date(2026, 10, 27, 9, 0))).toBe(thu);
+    // A week later it has closed by itself.
+    expect(currentNight(withThursday, new Date(2026, 11, 3, 20, 0))).toBe('2026-12-03');
+  });
+
+  it('starts a new night once tonight is marked done, and shows the notice for a day or so', () => {
+    const done = setDone(withThursday, thu, true);
+    expect(done.changed).toBe(true);
+    expect(currentNight(done.file, new Date(2026, 10, 27, 9, 0))).toBe('2026-11-27');
+    expect(recentlyFinished(done.file, new Date(2026, 10, 27, 9, 0))?.date).toBe(thu);
+    expect(recentlyFinished(done.file, new Date(2026, 11, 3, 20, 0))).toBeNull();
+    expect(recentlyFinished(withThursday, new Date(2026, 10, 26, 23, 0))).toBeNull();
+    expect(validateRecords(done.file)).toEqual([]);
+  });
+
+  it('reopens a night when another game is saved into it, and can be reopened by hand', () => {
+    const done = setDone(addGame(emptyRecords(), thu, g1).file, thu, true).file;
+    expect(addGame(done, thu, g2).file.nights[0].done).toBe(false);
+    expect(setDone(done, thu, false).file.nights[0].done).toBe(false);
+    expect(setDone(done, '2026-01-01', true).changed).toBe(false);
+  });
+
+  it("takes this device's copy of the done mark when merging", () => {
+    const site = withThursday;
+    const device = setDone(withThursday, thu, true).file;
+    expect(mergeRecords(site, device).nights[0].done).toBe(true);
+    expect(mergeRecords(device, site).nights[0].done).toBe(true); // the site's copy doesn't say, so it stays
+    expect(mergeRecords(device, setDone(device, thu, false).file).nights[0].done).toBe(false);
+    expect(validateRecords({ nights: [{ date: thu, games: [], done: 'yes' }] })).toEqual(['Night 1 (2026-11-26): "done" must be true or false.']);
+  });
+
+  it('marks the night done on GitHub, and saves the next game into a new night', async () => {
+    const gh = fakeGitHub({ start: withThursday });
+    const res = await markNightDone(target, 'good', thu, true, gh.f);
+    expect(res.file.nights[0].done).toBe(true);
+    expect(gh.puts.map((p) => p.message)).toEqual([`All matches done for ${thu}`]);
+    const next = await saveGame(target, 'good', (file) => currentNight(file, new Date(2026, 11, 3, 20, 0)), g1, gh.f);
+    expect(next).toMatchObject({ number: 1, already: false, date: '2026-12-03' });
+    await expect(markNightDone(target, 'good', '2026-01-01', true, gh.f)).rejects.toBeInstanceOf(SaveError);
   });
 });

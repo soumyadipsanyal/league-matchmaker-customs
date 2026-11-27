@@ -24,6 +24,8 @@ export interface RecordNight {
   /** YYYY-MM-DD */
   date: string;
   games: RecordGame[];
+  /** The organiser pressed "All matches done": no more games tonight. */
+  done?: boolean;
 }
 
 export interface RecordsFile {
@@ -40,6 +42,39 @@ export function nightDate(now: Date = new Date()): string {
   const d = new Date(now.getTime() - 6 * 60 * 60 * 1000);
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Whole days from one YYYY-MM-DD date to another. */
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000);
+
+const latestNight = (file: RecordsFile): RecordNight | undefined => [...file.nights].sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+
+/**
+ * The night games are being saved to. The latest night stays open, however
+ * late it gets, until the organiser presses "All matches done" (or it's more
+ * than a day old, in case they forgot). Otherwise a new night starts, dated by
+ * nightDate().
+ */
+export function currentNight(file: RecordsFile, now: Date = new Date()): string {
+  const latest = latestNight(file);
+  const fresh = nightDate(now);
+  // Within a day either way (a device a little ahead or behind on the date still carries on tonight).
+  if (latest && !latest.done && Math.abs(daysBetween(latest.date, fresh)) <= 1) return latest.date;
+  return fresh;
+}
+
+/** The latest night, if the organiser marked it done in the last day or so (for the "all matches done" notice). */
+export function recentlyFinished(file: RecordsFile, now: Date = new Date()): RecordNight | null {
+  const latest = latestNight(file);
+  if (!latest?.done) return null;
+  return Math.abs(daysBetween(latest.date, nightDate(now))) <= 1 ? latest : null;
+}
+
+/** Marks a night done (or reopens it). Unknown nights are left alone. */
+export function setDone(file: RecordsFile, date: string, done: boolean): { file: RecordsFile; changed: boolean } {
+  const night = file.nights.find((n) => n.date === date);
+  if (!night || (night.done === true) === done) return { file, changed: false };
+  return { file: { nights: file.nights.map((n) => (n.date === date ? { ...n, done } : n)) }, changed: true };
 }
 
 export function toRecordGame(g: TeamsGame): RecordGame {
@@ -65,13 +100,24 @@ export function addGame(file: RecordsFile, date: string, game: RecordGame): { fi
   const at = night.games.findIndex((g) => recordKey(g) === recordKey(game));
   if (at >= 0) return { file: { nights }, number: at + 1, already: true };
   night.games.push(game);
+  // Saving another game means the night isn't over after all.
+  if (night.done) night.done = false;
   return { file: { nights }, number: night.games.length, already: false };
 }
 
-/** Joins two copies of the records (e.g. the site's and this device's), keeping each game once. */
+/**
+ * Joins two copies of the records (e.g. the site's and this device's), keeping
+ * each game once. Where the second copy says whether a night is done, it wins.
+ */
 export function mergeRecords(a: RecordsFile, b: RecordsFile): RecordsFile {
   let out: RecordsFile = { nights: a.nights.map((n) => ({ ...n, games: [...n.games] })) };
-  for (const n of b.nights) for (const g of n.games) out = addGame(out, n.date, g).file;
+  for (const n of b.nights) {
+    for (const g of n.games) out = addGame(out, n.date, g).file;
+    if (typeof n.done === 'boolean') {
+      if (!out.nights.some((x) => x.date === n.date)) out = { nights: [...out.nights, { date: n.date, games: [] }].sort((x, y) => x.date.localeCompare(y.date)) };
+      out = { nights: out.nights.map((x) => (x.date === n.date ? { ...x, done: n.done } : x)) };
+    }
+  }
   return out;
 }
 
@@ -112,6 +158,7 @@ export function validateRecords(data: unknown): string[] {
   f.nights.forEach((n, i) => {
     const at = `Night ${i + 1}${n?.date ? ` (${n.date})` : ''}`;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(n?.date ?? '')) errs.push(`${at}: "date" must look like 2026-11-27.`);
+    if (n?.done !== undefined && typeof n.done !== 'boolean') errs.push(`${at}: "done" must be true or false.`);
     if (!Array.isArray(n?.games)) {
       errs.push(`${at}: needs a "games" list.`);
       return;

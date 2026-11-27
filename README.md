@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Open the address it prints (usually http://localhost:5173). Anyone can make teams; press **Unlock** in the header and enter the password to see the ratings, totals and lane bars.
+Open the address it prints (usually http://localhost:5173). Anyone can make teams; press **Unlock** in the header and enter the password to see the ratings, totals and lane bars. After that, **Lock** and **Unlock** work without the password again until the page is reloaded (it's kept in memory only, never saved on the device).
 
 ```powershell
 npm run build      # static site in dist/
@@ -98,7 +98,9 @@ Official icons are optional. Drop PNGs into `public/assets` with these exact nam
 
 ## Organiser mode: saving games
 
-The master password unlocks everything the normal one does, plus a **Save game** button on the Teams tab. It adds the game on screen (names, roles and who sat out) to today's record in `src/data/match-records.json`, straight into the GitHub repo, so it shows in **Match history** for everyone after the site rebuilds (about 2 minutes). Games played after midnight count for the night before (the day changes at 6 am).
+The master password unlocks everything the normal one does, plus a **Save game** button on the Teams tab. It adds the game on screen (names, roles and who sat out) to tonight's record in `src/data/match-records.json`, straight into the GitHub repo, so it shows in **Match history** for everyone after the site rebuilds (about 2 minutes).
+
+A night stays open, however late you play, until the organiser presses **All matches done** on the Tonight tab (next to **Use today's match record**). That marks the night finished on GitHub: everyone sees "All matches done" on the Tonight tab and in Match history, with a note that the games will be up in Match history and Stats soon, and the next game saved starts a new night. Pressing it again reopens the night, and so does saving another game into it. If nobody presses it, a night more than a day old closes by itself, and a new night is dated by the clock (games before 6 am count for the night before).
 
 On the Tonight tab, **Use today's match record** makes the next teams carry on from today's saved games, read fresh from GitHub:
 

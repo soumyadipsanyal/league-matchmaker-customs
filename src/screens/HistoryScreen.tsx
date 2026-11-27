@@ -58,7 +58,7 @@ function Shots({ paths, label }: { paths: string[]; label: string }) {
   );
 }
 
-function Night({ date, saved }: { date: string; saved: RecordGame[] }) {
+function Night({ date, saved, done }: { date: string; saved: RecordGame[]; done: boolean }) {
   const [open, setOpen] = useState(false);
   const shots = shotsFor(date, manifest);
   const recorded = STATS.nights.find((n) => n.date === date)?.games ?? [];
@@ -74,6 +74,7 @@ function Night({ date, saved }: { date: string; saved: RecordGame[] }) {
         <span className="nmeta">
           {games.length ? plural(games.length, 'game') : 'No games yet'}
           {shotCount > 0 && ` · ${plural(shotCount, 'screenshot')}`}
+          {done && ' · All matches done'}
         </span>
         <svg className="gl chev" viewBox="0 0 24 24" aria-hidden="true">
           <path d="m6 9 6 6 6-6" />
@@ -81,6 +82,7 @@ function Night({ date, saved }: { date: string; saved: RecordGame[] }) {
       </summary>
       {open && (
         <div className="nbody">
+          {done && recorded.length === 0 && <p className="note">All matches done. The screenshots and stats will be up soon.</p>}
           {games.length === 0 && shots.other.length === 0 && <p className="note">No screenshots for this night yet.</p>}
           {games.map((n) => {
             const paths = shots.games.get(n) ?? [];
@@ -121,7 +123,12 @@ export function HistoryScreen({ records }: { records: RecordsFile }) {
         ) : (
           <div className="nights">
             {NIGHTS.map((d) => (
-              <Night key={d} date={d} saved={records.nights.find((n) => n.date === d)?.games ?? []} />
+              <Night
+                key={d}
+                date={d}
+                saved={records.nights.find((n) => n.date === d)?.games ?? []}
+                done={records.nights.find((n) => n.date === d)?.done === true}
+              />
             ))}
           </div>
         )}
