@@ -37,9 +37,13 @@ const PLAYER_COLS: Col<PlayerRow>[] = [
   { key: 'kp', label: 'KP%', title: "Kill participation: kills + assists as a share of the team's kills", value: (r) => r.kp, fmt: pct },
   { key: 'dmgShare', label: 'DMG%', title: "Share of the team's damage to champions", value: (r) => r.dmgShare, fmt: pct },
   { key: 'goldShare', label: 'Gold%', title: "Share of the team's gold", value: (r) => r.goldShare, fmt: pct },
+  { key: 'dtShare', label: 'DT%', title: "Share of the team's damage taken", value: (r) => r.dtShare, fmt: pct },
   { key: 'dpm', label: 'DPM', title: 'Damage to champions per minute', value: (r) => r.dpm, fmt: int },
   { key: 'turretDmg', label: 'Turret dmg', title: 'Average damage to turrets per game', value: (r) => r.turretDmg, fmt: thou },
   { key: 'vspm', label: 'VSPM', title: 'Vision score per minute', value: (r) => r.vspm, fmt: dec2 },
+  { key: 'fbRate', label: 'FB%', title: 'Share of games where they got the first blood kill', value: (r) => r.fbRate, fmt: pct },
+  { key: 'quadras', label: 'Quadras', title: 'Games where their biggest multi-kill was a quadra kill', value: (r) => r.quadras, fmt: int },
+  { key: 'pentas', label: 'Pentas', title: 'Games where they got a penta kill', value: (r) => r.pentas, fmt: int },
 ];
 
 const CHAMP_COLS: Col<ChampRow>[] = [
@@ -259,7 +263,10 @@ export function StatsScreen() {
             <p className="note legend">
               <b>KDA</b> (kills + assists) ÷ deaths · <b>CSM</b> creep score per minute · <b>GPM</b> gold per minute · <b>KP%</b> kill participation ·{' '}
               <b>DMG%</b> share of the team's damage to champions · <b>Gold%</b> share of the team's gold · <b>DPM</b> damage per minute ·{' '}
-              <b>Turret dmg</b> average damage to turrets per game · <b>VSPM</b> vision score per minute. Pick a role to see only the games each
+              <b>DT%</b> share of the team's damage taken · <b>Turret dmg</b> average damage to turrets per game · <b>VSPM</b> vision score per
+              minute · <b>FB%</b> share of games where they got the first blood kill (the scoreboard doesn't mark assists) · <b>Quadras</b> and{' '}
+              <b>Pentas</b> games where their biggest multi-kill was a quadra or penta kill (the scoreboard only shows the biggest, so two
+              quadras in one game count once). Pick a role to see only the games each
               player spent in it: Support leaves out CS and turret damage, and Jungle adds the objectives their team took per game (drakes,
               void grubs, heralds, barons and Elder dragons; the scoreboard shows the team's total, not who took the last hit). A dash means the scoreboard didn't show it. Gold diff at 15, first blood and other timeline stats
               aren't on the post-game scoreboard, so they aren't tracked.

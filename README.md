@@ -128,12 +128,12 @@ Put the screenshots in that folder named by game: `game-1.png`, `game-2.jpg`, an
 
 ## Stats
 
-The **Stats** tab shows gol.gg-style player and champion tables (games, win rate, KDA, average kills/deaths/assists, CS and gold per minute, kill participation, damage and gold share, damage per minute, average damage to turrets, vision per minute) built from `src/data/match-stats.json`. Pick a role (Top, Jungle, Mid, ADC, Support) to see only the games each player spent in that role; **All roles** shows the totals. Support leaves out CS per minute and turret damage; Jungle adds the objectives the jungler's team took per game (drakes, void grubs, heralds, barons, Elder dragons). Each game in that file lists the duration, the winning side and, for each player, the champion, role, K/D/A, CS, gold and, if the scoreboard shows them, damage to champions, vision score and damage to turrets:
+The **Stats** tab shows gol.gg-style player and champion tables (games, win rate, KDA, average kills/deaths/assists, CS and gold per minute, kill participation, damage and gold share, damage taken share, damage per minute, average damage to turrets, vision per minute, first blood rate, quadra and penta kills) built from `src/data/match-stats.json`. Pick a role (Top, Jungle, Mid, ADC, Support) to see only the games each player spent in that role; **All roles** shows the totals. Support leaves out CS per minute and turret damage; Jungle adds the objectives the jungler's team took per game (drakes, void grubs, heralds, barons, Elder dragons). Each game in that file lists the duration, the winning side and, for each player, the champion, role, K/D/A, CS, gold and, if the scoreboard shows them, damage to champions, vision score, damage to turrets, damage taken, largest multi-kill (`multi`, 4 = quadra, 5 = penta) and whether they got first blood (`firstBlood`; the stats tab marks the killer only):
 
 ```json
 {"nights": [{"date": "2026-11-26", "games": [
   {"game": 1, "duration": "31:24", "winner": "blue",
-   "blue": [{"player": "Alex", "champ": "Master Yi", "role": "jg", "k": 7, "d": 2, "a": 5, "cs": 210, "gold": 12400, "dmg": 18300, "vision": 22, "turrets": 4100}, "...4 more"],
+   "blue": [{"player": "Alex", "champ": "Master Yi", "role": "jg", "k": 7, "d": 2, "a": 5, "cs": 210, "gold": 12400, "dmg": 18300, "vision": 22, "turrets": 4100, "taken": 21400, "multi": 2, "firstBlood": false}, "...4 more"],
    "red":  ["...5 players"],
    "objectives": {"blue": {"towers": 9, "inhibitors": 2, "barons": 1, "dragons": 3, "elders": 0, "heralds": 1, "grubs": 3},
                   "red":  {"towers": 2, "inhibitors": 0, "barons": 0, "dragons": 1, "elders": 0, "heralds": 0, "grubs": 0}}}]}]}

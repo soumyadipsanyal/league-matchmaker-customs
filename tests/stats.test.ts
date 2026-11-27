@@ -191,3 +191,44 @@ describe('team objectives', () => {
     expect(msg).toMatch(/red objectives "grubs" must be a whole number/);
   });
 });
+
+describe('damage taken, first blood and multi-kills', () => {
+  // Made-up numbers. Blue takes 100,000 damage in total; Ann takes 25,000 of it.
+  const taken = [25_000, 30_000, 20_000, 10_000, 15_000];
+  const mark = (g: StatGame, fb: string, multi: Record<string, number>): StatGame => ({
+    ...g,
+    blue: g.blue.map((l, i) => ({ ...l, taken: taken[i], multi: multi[l.player] ?? 1, firstBlood: l.player === fb })),
+    red: g.red.map((l) => ({ ...l, taken: 10_000, multi: multi[l.player] ?? 1, firstBlood: l.player === fb })),
+  });
+  const g1 = mark(game, 'Ann', { Ann: 4 });
+  const g2 = mark({ ...game, game: 2 }, 'Fi', { Ann: 5, Cy: 4 });
+  const night = [{ date: '2026-11-26', games: [g1, g2] }];
+
+  it("works out the share of the team's damage taken", () => {
+    const ann = aggregate(night).players.find((p) => p.player === 'Ann')!;
+    expect(ann.dtShare).toBeCloseTo(25_000 / 100_000, 10);
+  });
+
+  it('counts first bloods over the games that recorded them', () => {
+    const { players } = aggregate(night);
+    expect(players.find((p) => p.player === 'Ann')!.fbRate).toBeCloseTo(0.5, 10);
+    expect(players.find((p) => p.player === 'Fi')!.fbRate).toBeCloseTo(0.5, 10);
+    expect(players.find((p) => p.player === 'Bo')!.fbRate).toBe(0);
+    expect(aggregate([{ date: '2026-11-26', games: [game] }]).players[0].fbRate).toBeNull();
+  });
+
+  it('counts quadras and pentas from the largest multi-kill', () => {
+    const { players } = aggregate(night);
+    expect(players.find((p) => p.player === 'Ann')).toMatchObject({ quadras: 1, pentas: 1 });
+    expect(players.find((p) => p.player === 'Cy')).toMatchObject({ quadras: 1, pentas: 0 });
+    expect(players.find((p) => p.player === 'Bo')).toMatchObject({ quadras: 0, pentas: 0 });
+    expect(aggregate([{ date: '2026-11-26', games: [game] }]).players[0].quadras).toBeNull();
+  });
+
+  it('rejects two first bloods or an impossible multi-kill', () => {
+    const bad = { nights: [{ date: '2026-11-26', games: [{ ...g1, red: [{ ...g1.red[0], firstBlood: true, multi: 6 }, ...g1.red.slice(1)] }] }] };
+    const msg = validateStats(bad).join(' ');
+    expect(msg).toMatch(/only one player can have first blood/);
+    expect(msg).toMatch(/"multi" must be a whole number from 0 to 5/);
+  });
+});

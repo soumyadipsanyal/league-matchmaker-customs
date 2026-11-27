@@ -24,6 +24,12 @@ export interface StatLine {
   vision?: number | null;
   /** Damage to turrets, if the screenshot shows it. */
   turrets?: number | null;
+  /** Damage taken, if the screenshot shows it. */
+  taken?: number | null;
+  /** Largest multi-kill (2 = double … 5 = penta), if the screenshot shows it. */
+  multi?: number | null;
+  /** Got the first blood kill (the stats tab marks the killer only). */
+  firstBlood?: boolean;
 }
 
 /** A team's objectives, from the scoreboard's "Bans + objectives" icons. */
@@ -97,6 +103,8 @@ export function validateStats(data: unknown): string[] {
           if (o.elders > o.dragons) errs.push(`${gt}: ${side} can't have more Elder dragons than dragons.`);
         }
       }
+      const firstBloods = ['blue', 'red'].flatMap((side) => (Array.isArray(g?.[side as 'blue']) ? g[side as 'blue'] : [])).filter((l) => l?.firstBlood === true);
+      if (firstBloods.length > 1) errs.push(`${gt}: only one player can have first blood.`);
       for (const side of ['blue', 'red'] as const) {
         const team = g?.[side];
         if (!Array.isArray(team) || team.length !== 5) {
@@ -111,10 +119,14 @@ export function validateStats(data: unknown): string[] {
           for (const key of ['k', 'd', 'a', 'cs', 'gold'] as const) {
             if (!Number.isFinite(l?.[key]) || l[key] < 0) errs.push(`${lt}: "${key}" must be a number, 0 or more.`);
           }
-          for (const key of ['dmg', 'vision', 'turrets'] as const) {
+          for (const key of ['dmg', 'vision', 'turrets', 'taken'] as const) {
             const v = l?.[key];
             if (v !== undefined && v !== null && (!Number.isFinite(v) || v < 0)) errs.push(`${lt}: "${key}" must be a number or null.`);
           }
+          if (l?.multi !== undefined && l.multi !== null && !(Number.isInteger(l.multi) && l.multi >= 0 && l.multi <= 5)) {
+            errs.push(`${lt}: "multi" must be a whole number from 0 to 5, or null.`);
+          }
+          if (l?.firstBlood !== undefined && typeof l.firstBlood !== 'boolean') errs.push(`${lt}: "firstBlood" must be true or false.`);
         });
       }
     });
@@ -142,6 +154,16 @@ interface Totals {
   /** Only over games where turret damage was recorded. */
   turrets: number;
   turretGames: number;
+  /** Only over games where the whole team's damage taken was recorded. */
+  taken: number;
+  teamTaken: number;
+  /** Games where first blood was recorded, and how many the player got. */
+  fbGames: number;
+  fb: number;
+  /** Games where the largest multi-kill was recorded. */
+  multiGames: number;
+  quadras: number;
+  pentas: number;
   /** The player's team's objectives, over games where they were typed in. */
   objGames: number;
   drakes: number;
@@ -169,6 +191,13 @@ const emptyTotals = (): Totals => ({
   visionMinutes: 0,
   turrets: 0,
   turretGames: 0,
+  taken: 0,
+  teamTaken: 0,
+  fbGames: 0,
+  fb: 0,
+  multiGames: 0,
+  quadras: 0,
+  pentas: 0,
   objGames: 0,
   drakes: 0,
   elders: 0,
@@ -197,6 +226,13 @@ export interface Rates {
   vspm: number | null;
   /** Average damage to turrets per game. */
   turretDmg: number | null;
+  /** 0–1: share of the team's damage taken. */
+  dtShare: number | null;
+  /** 0–1: share of games where they got first blood. */
+  fbRate: number | null;
+  /** Games whose largest multi-kill was a quadra / a penta. */
+  quadras: number | null;
+  pentas: number | null;
   /** The team's objectives per game (elemental drakes, Elder, heralds, void grubs, barons). */
   drakesPg: number | null;
   eldersPg: number | null;
@@ -223,6 +259,10 @@ function rates(t: Totals): Rates {
     dpm: t.dmgMinutes ? t.dmg / t.dmgMinutes : null,
     vspm: t.visionMinutes ? t.vision / t.visionMinutes : null,
     turretDmg: t.turretGames ? t.turrets / t.turretGames : null,
+    dtShare: t.teamTaken ? t.taken / t.teamTaken : null,
+    fbRate: t.fbGames ? t.fb / t.fbGames : null,
+    quadras: t.multiGames ? t.quadras : null,
+    pentas: t.multiGames ? t.pentas : null,
     drakesPg: t.objGames ? t.drakes / t.objGames : null,
     eldersPg: t.objGames ? t.elders / t.objGames : null,
     heraldsPg: t.objGames ? t.heralds / t.objGames : null,
@@ -254,6 +294,19 @@ function add(t: Totals, line: StatLine, team: StatLine[], won: boolean, minutes:
   if (typeof line.turrets === 'number') {
     t.turrets += line.turrets;
     t.turretGames++;
+  }
+  if (typeof line.taken === 'number' && team.every((l) => typeof l.taken === 'number')) {
+    t.taken += line.taken;
+    t.teamTaken += team.reduce((s, l) => s + (l.taken as number), 0);
+  }
+  if (typeof line.firstBlood === 'boolean') {
+    t.fbGames++;
+    if (line.firstBlood) t.fb++;
+  }
+  if (typeof line.multi === 'number') {
+    t.multiGames++;
+    if (line.multi === 4) t.quadras++;
+    if (line.multi >= 5) t.pentas++;
   }
   if (obj) {
     t.objGames++;

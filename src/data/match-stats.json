@@ -8,18 +8,18 @@
           "duration": "32:10",
           "winner": "blue",
           "blue": [
-            { "player": "Darky", "champ": "Warwick", "role": "top", "k": 12, "d": 5, "a": 2, "cs": 295, "gold": 17896, "dmg": 28531, "vision": 24, "turrets": 18746 },
-            { "player": "Shabab", "champ": "Poppy", "role": "jg", "k": 0, "d": 2, "a": 10, "cs": 156, "gold": 9967, "dmg": 8017, "vision": 33, "turrets": 793 },
-            { "player": "Envy", "champ": "Akali", "role": "mid", "k": 17, "d": 9, "a": 9, "cs": 202, "gold": 16021, "dmg": 42757, "vision": 20, "turrets": 10854 },
-            { "player": "Shafkat", "champ": "Jhin", "role": "adc", "k": 6, "d": 8, "a": 13, "cs": 187, "gold": 13540, "dmg": 20018, "vision": 23, "turrets": 9666 },
-            { "player": "Ere", "champ": "Lux", "role": "sp", "k": 12, "d": 3, "a": 12, "cs": 79, "gold": 13197, "dmg": 28171, "vision": 95, "turrets": 569 }
+            { "player": "Darky", "champ": "Warwick", "role": "top", "k": 12, "d": 5, "a": 2, "cs": 295, "gold": 17896, "dmg": 28531, "vision": 24, "turrets": 18746, "taken": 43146, "multi": 2, "firstBlood": true },
+            { "player": "Shabab", "champ": "Poppy", "role": "jg", "k": 0, "d": 2, "a": 10, "cs": 156, "gold": 9967, "dmg": 8017, "vision": 33, "turrets": 793, "taken": 27224, "multi": 0, "firstBlood": false },
+            { "player": "Envy", "champ": "Akali", "role": "mid", "k": 17, "d": 9, "a": 9, "cs": 202, "gold": 16021, "dmg": 42757, "vision": 20, "turrets": 10854, "taken": 40504, "multi": 2, "firstBlood": false },
+            { "player": "Shafkat", "champ": "Jhin", "role": "adc", "k": 6, "d": 8, "a": 13, "cs": 187, "gold": 13540, "dmg": 20018, "vision": 23, "turrets": 9666, "taken": 22109, "multi": 1, "firstBlood": false },
+            { "player": "Ere", "champ": "Lux", "role": "sp", "k": 12, "d": 3, "a": 12, "cs": 79, "gold": 13197, "dmg": 28171, "vision": 95, "turrets": 569, "taken": 16308, "multi": 2, "firstBlood": false }
           ],
           "red": [
-            { "player": "Subham", "champ": "Ornn", "role": "top", "k": 2, "d": 5, "a": 7, "cs": 199, "gold": 10690, "dmg": 22493, "vision": 28, "turrets": 0 },
-            { "player": "Taha", "champ": "Rengar", "role": "jg", "k": 4, "d": 13, "a": 5, "cs": 106, "gold": 9892, "dmg": 14652, "vision": 31, "turrets": 708 },
-            { "player": "Ridwan", "champ": "Viktor", "role": "mid", "k": 7, "d": 11, "a": 7, "cs": 228, "gold": 14063, "dmg": 34204, "vision": 18, "turrets": 3345 },
-            { "player": "Siv", "champ": "Aphelios", "role": "adc", "k": 10, "d": 10, "a": 3, "cs": 182, "gold": 12936, "dmg": 25403, "vision": 28, "turrets": 2794 },
-            { "player": "Shafi", "champ": "Leona", "role": "sp", "k": 4, "d": 8, "a": 15, "cs": 33, "gold": 10762, "dmg": 14095, "vision": 89, "turrets": 138 }
+            { "player": "Subham", "champ": "Ornn", "role": "top", "k": 2, "d": 5, "a": 7, "cs": 199, "gold": 10690, "dmg": 22493, "vision": 28, "turrets": 0, "taken": 28695, "multi": 1, "firstBlood": false },
+            { "player": "Taha", "champ": "Rengar", "role": "jg", "k": 4, "d": 13, "a": 5, "cs": 106, "gold": 9892, "dmg": 14652, "vision": 31, "turrets": 708, "taken": 32873, "multi": 1, "firstBlood": false },
+            { "player": "Ridwan", "champ": "Viktor", "role": "mid", "k": 7, "d": 11, "a": 7, "cs": 228, "gold": 14063, "dmg": 34204, "vision": 18, "turrets": 3345, "taken": 29598, "multi": 2, "firstBlood": false },
+            { "player": "Siv", "champ": "Aphelios", "role": "adc", "k": 10, "d": 10, "a": 3, "cs": 182, "gold": 12936, "dmg": 25403, "vision": 28, "turrets": 2794, "taken": 27700, "multi": 2, "firstBlood": false },
+            { "player": "Shafi", "champ": "Leona", "role": "sp", "k": 4, "d": 8, "a": 15, "cs": 33, "gold": 10762, "dmg": 14095, "vision": 89, "turrets": 138, "taken": 26488, "multi": 1, "firstBlood": false }
           ],
           "objectives": {
             "blue": { "towers": 10, "inhibitors": 2, "barons": 1, "dragons": 2, "elders": 0, "heralds": 1, "grubs": 3 },
@@ -31,18 +31,18 @@
           "duration": "25:20",
           "winner": "blue",
           "blue": [
-            { "player": "Forkan", "champ": "Dr. Mundo", "role": "top", "k": 4, "d": 2, "a": 10, "cs": 139, "gold": 9576, "dmg": 16294, "vision": 25, "turrets": 8409 },
-            { "player": "Darky", "champ": "Zaahen", "role": "jg", "k": 12, "d": 2, "a": 9, "cs": 198, "gold": 13968, "dmg": 21768, "vision": 19, "turrets": 10010 },
-            { "player": "Subham", "champ": "Ahri", "role": "mid", "k": 5, "d": 2, "a": 10, "cs": 171, "gold": 9426, "dmg": 15991, "vision": 28, "turrets": 5233 },
-            { "player": "Shafkat", "champ": "Lucian", "role": "adc", "k": 11, "d": 1, "a": 7, "cs": 211, "gold": 14028, "dmg": 20904, "vision": 15, "turrets": 10083 },
-            { "player": "Siv", "champ": "Swain", "role": "sp", "k": 2, "d": 1, "a": 24, "cs": 36, "gold": 9034, "dmg": 16442, "vision": 49, "turrets": 3186 }
+            { "player": "Forkan", "champ": "Dr. Mundo", "role": "top", "k": 4, "d": 2, "a": 10, "cs": 139, "gold": 9576, "dmg": 16294, "vision": 25, "turrets": 8409, "taken": 26529, "multi": 1, "firstBlood": false },
+            { "player": "Darky", "champ": "Zaahen", "role": "jg", "k": 12, "d": 2, "a": 9, "cs": 198, "gold": 13968, "dmg": 21768, "vision": 19, "turrets": 10010, "taken": 31315, "multi": 2, "firstBlood": false },
+            { "player": "Subham", "champ": "Ahri", "role": "mid", "k": 5, "d": 2, "a": 10, "cs": 171, "gold": 9426, "dmg": 15991, "vision": 28, "turrets": 5233, "taken": 12313, "multi": 1, "firstBlood": false },
+            { "player": "Shafkat", "champ": "Lucian", "role": "adc", "k": 11, "d": 1, "a": 7, "cs": 211, "gold": 14028, "dmg": 20904, "vision": 15, "turrets": 10083, "taken": 12280, "multi": 4, "firstBlood": true },
+            { "player": "Siv", "champ": "Swain", "role": "sp", "k": 2, "d": 1, "a": 24, "cs": 36, "gold": 9034, "dmg": 16442, "vision": 49, "turrets": 3186, "taken": 17784, "multi": 1, "firstBlood": false }
           ],
           "red": [
-            { "player": "Taha", "champ": "Warwick", "role": "top", "k": 3, "d": 5, "a": 3, "cs": 107, "gold": 7821, "dmg": 11358, "vision": 13, "turrets": 1799 },
-            { "player": "Envy", "champ": "Viego", "role": "jg", "k": 0, "d": 7, "a": 4, "cs": 168, "gold": 8195, "dmg": 11127, "vision": 9, "turrets": 1688 },
-            { "player": "Swoad", "champ": "Cassiopeia", "role": "mid", "k": 2, "d": 6, "a": 1, "cs": 199, "gold": 8745, "dmg": 16043, "vision": 9, "turrets": 0 },
-            { "player": "Shafi", "champ": "Miss Fortune", "role": "adc", "k": 2, "d": 7, "a": 2, "cs": 157, "gold": 9032, "dmg": 14785, "vision": 12, "turrets": 837 },
-            { "player": "Shabab", "champ": "Maokai", "role": "sp", "k": 1, "d": 9, "a": 2, "cs": 31, "gold": 6377, "dmg": 11452, "vision": 54, "turrets": 0 }
+            { "player": "Taha", "champ": "Warwick", "role": "top", "k": 3, "d": 5, "a": 3, "cs": 107, "gold": 7821, "dmg": 11358, "vision": 13, "turrets": 1799, "taken": 19437, "multi": 1, "firstBlood": false },
+            { "player": "Envy", "champ": "Viego", "role": "jg", "k": 0, "d": 7, "a": 4, "cs": 168, "gold": 8195, "dmg": 11127, "vision": 9, "turrets": 1688, "taken": 21905, "multi": 0, "firstBlood": false },
+            { "player": "Swoad", "champ": "Cassiopeia", "role": "mid", "k": 2, "d": 6, "a": 1, "cs": 199, "gold": 8745, "dmg": 16043, "vision": 9, "turrets": 0, "taken": 23650, "multi": 1, "firstBlood": false },
+            { "player": "Shafi", "champ": "Miss Fortune", "role": "adc", "k": 2, "d": 7, "a": 2, "cs": 157, "gold": 9032, "dmg": 14785, "vision": 12, "turrets": 837, "taken": 16442, "multi": 1, "firstBlood": false },
+            { "player": "Shabab", "champ": "Maokai", "role": "sp", "k": 1, "d": 9, "a": 2, "cs": 31, "gold": 6377, "dmg": 11452, "vision": 54, "turrets": 0, "taken": 23891, "multi": 1, "firstBlood": false }
           ],
           "objectives": {
             "blue": { "towers": 10, "inhibitors": 2, "barons": 1, "dragons": 4, "elders": 0, "heralds": 1, "grubs": 3 },
@@ -54,18 +54,18 @@
           "duration": "32:37",
           "winner": "red",
           "blue": [
-            { "player": "Shabab", "champ": "Mordekaiser", "role": "top", "k": 6, "d": 4, "a": 4, "cs": 240, "gold": 12678, "dmg": 23244, "vision": 25, "turrets": 6036 },
-            { "player": "Darky", "champ": "Lillia", "role": "jg", "k": 12, "d": 9, "a": 6, "cs": 247, "gold": 15619, "dmg": 21292, "vision": 32, "turrets": 0 },
-            { "player": "Taha", "champ": "Zed", "role": "mid", "k": 5, "d": 7, "a": 7, "cs": 121, "gold": 9352, "dmg": 13606, "vision": 26, "turrets": 2325 },
-            { "player": "Shafkat", "champ": "Vayne", "role": "adc", "k": 6, "d": 6, "a": 6, "cs": 192, "gold": 12279, "dmg": 19872, "vision": 25, "turrets": 5504 },
-            { "player": "Shafi", "champ": "Tahm Kench", "role": "sp", "k": 1, "d": 8, "a": 11, "cs": 42, "gold": 8608, "dmg": 5030, "vision": 86, "turrets": 1239 }
+            { "player": "Shabab", "champ": "Mordekaiser", "role": "top", "k": 6, "d": 4, "a": 4, "cs": 240, "gold": 12678, "dmg": 23244, "vision": 25, "turrets": 6036, "taken": 31446, "multi": 2, "firstBlood": false },
+            { "player": "Darky", "champ": "Lillia", "role": "jg", "k": 12, "d": 9, "a": 6, "cs": 247, "gold": 15619, "dmg": 21292, "vision": 32, "turrets": 0, "taken": 47048, "multi": 4, "firstBlood": true },
+            { "player": "Taha", "champ": "Zed", "role": "mid", "k": 5, "d": 7, "a": 7, "cs": 121, "gold": 9352, "dmg": 13606, "vision": 26, "turrets": 2325, "taken": 25332, "multi": 1, "firstBlood": false },
+            { "player": "Shafkat", "champ": "Vayne", "role": "adc", "k": 6, "d": 6, "a": 6, "cs": 192, "gold": 12279, "dmg": 19872, "vision": 25, "turrets": 5504, "taken": 22356, "multi": 1, "firstBlood": false },
+            { "player": "Shafi", "champ": "Tahm Kench", "role": "sp", "k": 1, "d": 8, "a": 11, "cs": 42, "gold": 8608, "dmg": 5030, "vision": 86, "turrets": 1239, "taken": 33311, "multi": 1, "firstBlood": false }
           ],
           "red": [
-            { "player": "Forkan", "champ": "Ornn", "role": "top", "k": 1, "d": 2, "a": 6, "cs": 150, "gold": 9261, "dmg": 12571, "vision": 36, "turrets": 8260 },
-            { "player": "Envy", "champ": "Qiyana", "role": "jg", "k": 12, "d": 6, "a": 17, "cs": 217, "gold": 19388, "dmg": 49159, "vision": 22, "turrets": 6863 },
-            { "player": "Subham", "champ": "Viktor", "role": "mid", "k": 2, "d": 5, "a": 12, "cs": 207, "gold": 12317, "dmg": 21399, "vision": 31, "turrets": 8690 },
-            { "player": "Swoad", "champ": "Caitlyn", "role": "adc", "k": 11, "d": 8, "a": 5, "cs": 243, "gold": 15851, "dmg": 30718, "vision": 42, "turrets": 11580 },
-            { "player": "Siv", "champ": "Pyke", "role": "sp", "k": 8, "d": 9, "a": 11, "cs": 33, "gold": 10377, "dmg": 13122, "vision": 91, "turrets": 1149 }
+            { "player": "Forkan", "champ": "Ornn", "role": "top", "k": 1, "d": 2, "a": 6, "cs": 150, "gold": 9261, "dmg": 12571, "vision": 36, "turrets": 8260, "taken": 19882, "multi": 1, "firstBlood": false },
+            { "player": "Envy", "champ": "Qiyana", "role": "jg", "k": 12, "d": 6, "a": 17, "cs": 217, "gold": 19388, "dmg": 49159, "vision": 22, "turrets": 6863, "taken": 27063, "multi": 1, "firstBlood": false },
+            { "player": "Subham", "champ": "Viktor", "role": "mid", "k": 2, "d": 5, "a": 12, "cs": 207, "gold": 12317, "dmg": 21399, "vision": 31, "turrets": 8690, "taken": 16170, "multi": 1, "firstBlood": false },
+            { "player": "Swoad", "champ": "Caitlyn", "role": "adc", "k": 11, "d": 8, "a": 5, "cs": 243, "gold": 15851, "dmg": 30718, "vision": 42, "turrets": 11580, "taken": 19411, "multi": 4, "firstBlood": false },
+            { "player": "Siv", "champ": "Pyke", "role": "sp", "k": 8, "d": 9, "a": 11, "cs": 33, "gold": 10377, "dmg": 13122, "vision": 91, "turrets": 1149, "taken": 21656, "multi": 2, "firstBlood": false }
           ],
           "objectives": {
             "blue": { "towers": 2, "inhibitors": 0, "barons": 0, "dragons": 2, "elders": 0, "heralds": 1, "grubs": 1 },
