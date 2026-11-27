@@ -3,6 +3,7 @@ import statsData from '../data/match-stats.json';
 import { ChampIcon, RoleIcon } from '../components/Icons.tsx';
 import { plural } from '../lib/format.ts';
 import { nightLabel } from '../lib/history.ts';
+import { load, save } from '../lib/storage.ts';
 import { ROLES, ROLE_NAME, ROLE_SHORT, type Role } from '../lib/roles.ts';
 import { aggregate, champKey, type ChampRow, type PlayerRow, type Rates, type StatsFile } from '../lib/stats.ts';
 
@@ -68,12 +69,66 @@ const OBJECTIVE_COLS: Col<Rates>[] = [
 ];
 /** Not meaningful for supports. */
 const NOT_FOR_SUPPORT = new Set(['csm', 'turretDmg']);
+/** The short version: the basics only. Everything else is in the full extended version. */
+const SHORT_PLAYER = new Set(['games', 'winRate', 'kda', 'avgK', 'avgD', 'avgA', 'csm', 'kp', 'dpm']);
+const SHORT_CHAMP = new Set(['games', 'winRate', 'kda', 'csm', 'dpm']);
 
-/** The columns for a role: supports drop CS and turret damage, junglers gain their team's objectives. */
-function colsFor<R extends PlayerRow | ChampRow>(cols: Col<R>[], role: Role | 'all'): Col<R>[] {
-  if (role === 'sp') return cols.filter((c) => !NOT_FOR_SUPPORT.has(c.key));
-  if (role === 'jg') return [...cols, ...OBJECTIVE_COLS];
-  return cols;
+/**
+ * The columns to show: the short version keeps the basics; supports drop CS
+ * and turret damage; in the full version junglers gain their team's objectives.
+ */
+function colsFor<R extends PlayerRow | ChampRow>(cols: Col<R>[], role: Role | 'all', full: boolean, short: Set<string>): Col<R>[] {
+  let out = full ? cols : cols.filter((c) => short.has(c.key));
+  if (role === 'sp') out = out.filter((c) => !NOT_FOR_SUPPORT.has(c.key));
+  if (role === 'jg' && full) out = [...out, ...OBJECTIVE_COLS];
+  return out;
+}
+
+/** What each abbreviation means, for the key under the table. */
+const LEGEND: [string, ReactNode][] = [
+  ['kda', <><b>KDA</b> (kills + assists) ÷ deaths</>],
+  ['csm', <><b>CSM</b> creep score per minute</>],
+  ['gpm', <><b>GPM</b> gold per minute</>],
+  ['kp', <><b>KP%</b> kill participation</>],
+  ['dmgShare', <><b>DMG%</b> share of the team's damage to champions</>],
+  ['goldShare', <><b>Gold%</b> share of the team's gold</>],
+  ['dtShare', <><b>DT%</b> share of the team's damage taken</>],
+  ['dpm', <><b>DPM</b> damage to champions per minute</>],
+  ['turretDmg', <><b>Turret dmg</b> average damage to turrets per game</>],
+  ['vspm', <><b>VSPM</b> vision score per minute</>],
+  ['fbRate', <><b>FB%</b> share of games where they got the first blood kill (the scoreboard doesn't mark assists)</>],
+  [
+    'quadras',
+    <>
+      <b>Quadras</b> and <b>Pentas</b> games where their biggest multi-kill was a quadra or penta kill (the scoreboard only shows the
+      biggest, so two quadras in one game count once)
+    </>,
+  ],
+  [
+    'drakesPg',
+    <>
+      <b>Drakes</b>, <b>Grubs</b>, <b>Heralds</b>, <b>Barons</b> and <b>Elders</b> the objectives their team took per game (the scoreboard
+      shows the team's total, not who took the last hit)
+    </>,
+  ],
+];
+
+function Legend({ keys, full }: { keys: Set<string>; full: boolean }) {
+  const items = LEGEND.filter(([k]) => keys.has(k));
+  return (
+    <p className="note legend">
+      {items.map(([k, text], i) => (
+        <span key={k}>
+          {i > 0 && ' · '}
+          {text}
+        </span>
+      ))}
+      {items.length > 0 && '. '}
+      {full
+        ? "Pick a role to see only the games each player spent in it: Support leaves out CS and turret damage, and Jungle adds their team's objectives. A dash means the scoreboard didn't show it. Gold, CS and XP leads at 15 minutes aren't on the post-game scoreboard, so they aren't tracked."
+        : 'Pick a role to see only the games each player spent in it. The full extended version adds gold, damage and vision shares, turret damage, first bloods, multi-kills and, for junglers, objectives.'}
+    </p>
+  );
 }
 
 function Champ({ name }: { name: string }) {
@@ -160,12 +215,28 @@ export function StatsScreen() {
     [night, role],
   );
   const roleName = role === 'all' ? '' : ROLE_NAME[role].toLowerCase();
+  const [full, setFull] = useState<boolean>(() => load<boolean>('stats-full') === true);
+  const toggleFull = () =>
+    setFull((f) => {
+      save('stats-full', !f);
+      return !f;
+    });
+  const playerCols = colsFor(PLAYER_COLS, role, full, SHORT_PLAYER);
+  const champCols = colsFor(CHAMP_COLS, role, full, SHORT_CHAMP);
+  const shown = new Set((view === 'players' ? playerCols : champCols).map((c) => c.key));
 
   return (
     <section className="band">
-      <div className="wrap wide">
+      <div className={full ? 'wrap wide' : 'wrap'}>
         <div className="sec-head">
-          <h1>Stats</h1>
+          <div className="stathead">
+            <h1>Stats</h1>
+            {NIGHTS.length > 0 && (
+              <button type="button" className="btn fullbtn" aria-pressed={full} onClick={toggleFull}>
+                {full ? 'Back to the short version' : 'Click here to view full extended version'}
+              </button>
+            )}
+          </div>
           <p className="sub">
             Our Thursday customs, gol.gg style: totals across every recorded game, from the post-game scoreboards. Tap a heading to sort.
           </p>
@@ -231,8 +302,9 @@ export function StatsScreen() {
               <p className="note">No champions played at {roleName} in these games yet.</p>
             ) : view === 'players' ? (
               <Table
+                key={full ? 'full' : 'short'}
                 rows={data.players}
-                cols={colsFor(PLAYER_COLS, role)}
+                cols={playerCols}
                 first={(r) => r.player}
                 firstLabel="Player"
                 extraLabel="Champions"
@@ -251,8 +323,9 @@ export function StatsScreen() {
               />
             ) : (
               <Table
+                key={full ? 'full' : 'short'}
                 rows={data.champs}
-                cols={colsFor(CHAMP_COLS, role)}
+                cols={champCols}
                 first={(r) => r.champ}
                 firstLabel="Champion"
                 extraLabel="Played by"
@@ -260,17 +333,7 @@ export function StatsScreen() {
                 extra={(r) => r.players.map(([p, n]) => (n > 1 ? `${p} ×${n}` : p)).join(', ')}
               />
             )}
-            <p className="note legend">
-              <b>KDA</b> (kills + assists) ÷ deaths · <b>CSM</b> creep score per minute · <b>GPM</b> gold per minute · <b>KP%</b> kill participation ·{' '}
-              <b>DMG%</b> share of the team's damage to champions · <b>Gold%</b> share of the team's gold · <b>DPM</b> damage per minute ·{' '}
-              <b>DT%</b> share of the team's damage taken · <b>Turret dmg</b> average damage to turrets per game · <b>VSPM</b> vision score per
-              minute · <b>FB%</b> share of games where they got the first blood kill (the scoreboard doesn't mark assists) · <b>Quadras</b> and{' '}
-              <b>Pentas</b> games where their biggest multi-kill was a quadra or penta kill (the scoreboard only shows the biggest, so two
-              quadras in one game count once). Pick a role to see only the games each
-              player spent in it: Support leaves out CS and turret damage, and Jungle adds the objectives their team took per game (drakes,
-              void grubs, heralds, barons and Elder dragons; the scoreboard shows the team's total, not who took the last hit). A dash means the scoreboard didn't show it. Gold diff at 15, first blood and other timeline stats
-              aren't on the post-game scoreboard, so they aren't tracked.
-            </p>
+            <Legend keys={shown} full={full} />
           </>
         )}
       </div>
