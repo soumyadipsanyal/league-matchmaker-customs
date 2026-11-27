@@ -9,6 +9,13 @@
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+/** "2026-11-26" → "26 Nov". */
+export function shortNight(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()].slice(0, 3)}`;
+}
+
 /** "2026-11-26" → "Thursday 26 November 2026". */
 export function nightLabel(iso: string): string {
   const d = new Date(`${iso}T12:00:00Z`);

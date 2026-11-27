@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { aggregate, champKey, minutesOf, validateStats, type StatGame, type StatLine } from '../src/lib/stats.ts';
+import { aggregate, champKey, minutesOf, records, validateStats, type StatGame, type StatLine } from '../src/lib/stats.ts';
 import { nightLabel, shotsFor } from '../src/lib/history.ts';
 
 const line = (player: string, champ: string, k: number, d: number, a: number, cs: number, gold: number, dmg: number | null = null, vision: number | null = null): StatLine => ({
@@ -230,5 +230,52 @@ describe('damage taken, first blood and multi-kills', () => {
     const msg = validateStats(bad).join(' ');
     expect(msg).toMatch(/only one player can have first blood/);
     expect(msg).toMatch(/"multi" must be a whole number from 0 to 5/);
+  });
+});
+
+describe('single-game records', () => {
+  // Made-up numbers. Game 1 is the base game; in game 2 Ann (jungle this time) goes 9/0/3 on Lee Sin.
+  const roles = ['mid', 'jg', 'top', 'adc', 'sp'] as const;
+  const withRoles = (g: StatGame, blueRoles: readonly StatLine['role'][]): StatGame => ({
+    ...g,
+    blue: g.blue.map((l, i) => ({ ...l, role: blueRoles[i], multi: 1, firstBlood: false })),
+    red: g.red.map((l, i) => ({ ...l, role: roles[i], multi: 1, firstBlood: false })),
+  });
+  const g1 = withRoles(game, roles);
+  const g2base = withRoles({ ...game, game: 2, duration: '20:00' }, ['jg', 'mid', 'top', 'adc', 'sp']);
+  const g2: StatGame = {
+    ...g2base,
+    blue: g2base.blue.map((l) => (l.player === 'Ann' ? { ...l, champ: 'Lee Sin', k: 9, d: 0, a: 3, multi: 4, firstBlood: true } : l)),
+    objectives: {
+      blue: { towers: 9, inhibitors: 1, barons: 1, dragons: 3, elders: 0, heralds: 1, grubs: 3 },
+      red: { towers: 2, inhibitors: 0, barons: 0, dragons: 1, elders: 0, heralds: 0, grubs: 0 },
+    },
+  };
+  const night = [{ date: '2026-11-26', games: [g1, g2] }];
+  const rec = (key: string, role: Parameters<typeof records>[1] = null) => records(night, role).find((r) => r.key === key)!;
+
+  it('finds the best single game, with who and on what', () => {
+    const kda = rec('kda');
+    expect(kda.value).toBeCloseTo(12, 10); // 9 kills + 3 assists, no deaths
+    expect(kda.holders).toEqual([{ player: 'Ann', champ: 'Lee Sin', date: '2026-11-26', game: 2 }]);
+    expect(rec('deaths').value).toBe(6); // Hal, both games: a tie
+    expect(rec('deaths').holders.map((h) => `${h.player} g${h.game}`)).toEqual(['Hal g1', 'Hal g2']);
+  });
+
+  it('lists everyone for first blood and quadras, and nobody for pentas yet', () => {
+    expect(rec('quadra').holders.map((h) => h.player)).toEqual(['Ann']);
+    expect(rec('firstBlood').holders.map((h) => h.player)).toEqual(['Ann']);
+    const penta = rec('penta');
+    expect(penta.flag).toBe(true);
+    expect(penta.holders).toEqual([]);
+  });
+
+  it('follows the role filter and reports objectives for the team', () => {
+    // Ann played mid in game 1 only, so her 9/0/3 jungle game isn't a mid record.
+    expect(rec('kda', 'mid').holders[0]).toMatchObject({ player: 'Ann', game: 1 });
+    expect(rec('grubs', 'jg')).toMatchObject({ value: 3, holders: [{ player: 'Ann', game: 2 }] });
+    expect(rec('turretDmg').value).toBeNull();
+    // Nobody took an Elder dragon: no holders, rather than everyone tied on 0.
+    expect(rec('elders', 'jg')).toMatchObject({ value: 0, holders: [] });
   });
 });

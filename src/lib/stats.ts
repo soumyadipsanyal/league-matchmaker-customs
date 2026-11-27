@@ -368,6 +368,121 @@ export function aggregate(nights: StatNight[], role: Role | null = null): { play
   };
 }
 
+// ---------- single-game records ----------
+
+/** One player's line in one game, with what's needed to work out shares and rates. */
+interface LineInGame {
+  line: StatLine;
+  team: StatLine[];
+  minutes: number;
+  obj?: TeamObjectives;
+}
+
+const teamShare = (c: LineInGame, key: 'dmg' | 'taken'): number | null => {
+  const v = c.line[key];
+  if (typeof v !== 'number' || !c.team.every((l) => typeof l[key] === 'number')) return null;
+  const total = c.team.reduce((s, l) => s + (l[key] as number), 0);
+  return total ? v / total : null;
+};
+const perMinute = (v: number | null | undefined, minutes: number): number | null => (typeof v === 'number' && minutes > 0 ? v / minutes : null);
+
+/**
+ * Every stat that has a single-game record. "flag" stats (first blood, quadra,
+ * penta) either happened in a game or didn't, so their record lists everyone
+ * who has done it.
+ */
+export const RECORD_STATS = [
+  { key: 'kda', value: (c: LineInGame) => (c.line.k + c.line.a) / Math.max(1, c.line.d) },
+  { key: 'kills', value: (c: LineInGame) => c.line.k },
+  { key: 'deaths', value: (c: LineInGame) => c.line.d },
+  { key: 'assists', value: (c: LineInGame) => c.line.a },
+  { key: 'csm', value: (c: LineInGame) => perMinute(c.line.cs, c.minutes) },
+  { key: 'gpm', value: (c: LineInGame) => perMinute(c.line.gold, c.minutes) },
+  {
+    key: 'kp',
+    value: (c: LineInGame) => {
+      const kills = c.team.reduce((s, l) => s + l.k, 0);
+      return kills ? (c.line.k + c.line.a) / kills : null;
+    },
+  },
+  { key: 'dmgShare', value: (c: LineInGame) => teamShare(c, 'dmg') },
+  {
+    key: 'goldShare',
+    value: (c: LineInGame) => {
+      const gold = c.team.reduce((s, l) => s + l.gold, 0);
+      return gold ? c.line.gold / gold : null;
+    },
+  },
+  { key: 'dtShare', value: (c: LineInGame) => teamShare(c, 'taken') },
+  { key: 'dpm', value: (c: LineInGame) => perMinute(c.line.dmg, c.minutes) },
+  { key: 'turretDmg', value: (c: LineInGame) => (typeof c.line.turrets === 'number' ? c.line.turrets : null) },
+  { key: 'vspm', value: (c: LineInGame) => perMinute(c.line.vision, c.minutes) },
+  { key: 'firstBlood', flag: true, value: (c: LineInGame) => (typeof c.line.firstBlood === 'boolean' ? Number(c.line.firstBlood) : null) },
+  { key: 'quadra', flag: true, value: (c: LineInGame) => (typeof c.line.multi === 'number' ? Number(c.line.multi === 4) : null) },
+  { key: 'penta', flag: true, value: (c: LineInGame) => (typeof c.line.multi === 'number' ? Number(c.line.multi >= 5) : null) },
+  // The player's team's objectives in that game (shown for junglers).
+  { key: 'drakes', value: (c: LineInGame) => (c.obj ? c.obj.dragons - c.obj.elders : null) },
+  { key: 'grubs', value: (c: LineInGame) => (c.obj ? c.obj.grubs : null) },
+  { key: 'heralds', value: (c: LineInGame) => (c.obj ? c.obj.heralds : null) },
+  { key: 'barons', value: (c: LineInGame) => (c.obj ? c.obj.barons : null) },
+  { key: 'elders', value: (c: LineInGame) => (c.obj ? c.obj.elders : null) },
+] as const satisfies readonly { key: string; flag?: boolean; value: (c: LineInGame) => number | null }[];
+
+export type RecordKey = (typeof RECORD_STATS)[number]['key'];
+
+export interface RecordHolder {
+  player: string;
+  champ: string;
+  /** YYYY-MM-DD of the night. */
+  date: string;
+  game: number;
+}
+
+export interface StatRecord {
+  key: RecordKey;
+  /** True for stats that either happened in a game or didn't (first blood, quadra, penta). */
+  flag: boolean;
+  /** The best single-game value; null when no game recorded it, 0 when nobody has done it yet. */
+  value: number | null;
+  /** Everyone who reached it (all of them when tied), oldest first. */
+  holders: RecordHolder[];
+}
+
+/** The best single game for each stat, over the given nights (and role, if given). */
+export function records(nights: StatNight[], role: Role | null = null): StatRecord[] {
+  const lines: (LineInGame & { date: string; game: number })[] = [];
+  for (const n of [...nights].sort((a, b) => a.date.localeCompare(b.date))) {
+    for (const g of [...n.games].sort((a, b) => a.game - b.game)) {
+      const minutes = minutesOf(g.duration);
+      for (const side of ['blue', 'red'] as const) {
+        for (const line of g[side]) {
+          if (role && line.role !== role) continue;
+          lines.push({ line, team: g[side], minutes, obj: g.objectives?.[side], date: n.date, game: g.game });
+        }
+      }
+    }
+  }
+  return RECORD_STATS.map((stat) => {
+    const flag = 'flag' in stat && stat.flag === true;
+    let best: number | null = null;
+    let holders: RecordHolder[] = [];
+    for (const c of lines) {
+      const v = stat.value(c);
+      if (v === null || !Number.isFinite(v)) continue;
+      const holder = { player: c.line.player, champ: c.line.champ, date: c.date, game: c.game };
+      if (best === null || v > best + 1e-9) {
+        best = v;
+        holders = [holder];
+      } else if (Math.abs(v - best) <= 1e-9) {
+        holders.push(holder);
+      }
+    }
+    // A best of 0 (no pentas, no Elder dragons yet) isn't a record anyone holds.
+    if (best === 0) holders = [];
+    return { key: stat.key, flag, value: best, holders };
+  });
+}
+
 /** Data Dragon file key for a champion's display name ("Kai'Sa" → "Kaisa"). */
 const KEY_EXCEPTIONS: Record<string, string> = {
   wukong: 'MonkeyKing',

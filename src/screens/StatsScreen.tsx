@@ -2,10 +2,22 @@ import { useMemo, useState, type ReactNode } from 'react';
 import statsData from '../data/match-stats.json';
 import { ChampIcon, RoleIcon } from '../components/Icons.tsx';
 import { plural } from '../lib/format.ts';
-import { nightLabel } from '../lib/history.ts';
+import { nightLabel, shortNight } from '../lib/history.ts';
 import { load, save } from '../lib/storage.ts';
+import { medals, type Medal } from '../lib/medals.ts';
 import { ROLES, ROLE_NAME, ROLE_SHORT, type Role } from '../lib/roles.ts';
-import { aggregate, champKey, type ChampRow, type PlayerRow, type Rates, type StatsFile } from '../lib/stats.ts';
+import {
+  aggregate,
+  champKey,
+  records,
+  type ChampRow,
+  type PlayerRow,
+  type Rates,
+  type RecordKey,
+  type StatNight,
+  type StatRecord,
+  type StatsFile,
+} from '../lib/stats.ts';
 
 const STATS = statsData as StatsFile;
 const NIGHTS = [...STATS.nights].sort((a, b) => b.date.localeCompare(a.date));
@@ -113,10 +125,18 @@ const LEGEND: [string, ReactNode][] = [
   ],
 ];
 
-function Legend({ keys, full }: { keys: Set<string>; full: boolean }) {
+function Legend({ keys, full, stars }: { keys: Set<string>; full: boolean; stars: boolean }) {
   const items = LEGEND.filter(([k]) => keys.has(k));
   return (
     <p className="note legend">
+      {stars && (
+        <span className="starkey">
+          <Star medal={1} />
+          <Star medal={2} />
+          <Star medal={3} /> the top three in each stat (fewest for Avg deaths; ties share a star). Quadras and Pentas only give gold, to
+          everyone tied on the most.{' '}
+        </span>
+      )}
       {items.map(([k, text], i) => (
         <span key={k}>
           {i > 0 && ' · '}
@@ -131,6 +151,111 @@ function Legend({ keys, full }: { keys: Set<string>; full: boolean }) {
   );
 }
 
+/** How each single-game record is named and shown. */
+const RECORD_INFO: Record<RecordKey, { label: string; fmt: Fmt }> = {
+  kda: { label: 'Highest KDA', fmt: dec1 },
+  kills: { label: 'Most kills', fmt: int },
+  deaths: { label: 'Most deaths', fmt: int },
+  assists: { label: 'Most assists', fmt: int },
+  csm: { label: 'Highest CSM', fmt: dec1 },
+  gpm: { label: 'Highest GPM', fmt: int },
+  kp: { label: 'Highest KP%', fmt: pct },
+  dmgShare: { label: 'Highest DMG%', fmt: pct },
+  goldShare: { label: 'Highest Gold%', fmt: pct },
+  dtShare: { label: 'Highest DT%', fmt: pct },
+  dpm: { label: 'Highest DPM', fmt: int },
+  turretDmg: { label: 'Most turret damage', fmt: thou },
+  vspm: { label: 'Highest VSPM', fmt: dec2 },
+  firstBlood: { label: 'First blood', fmt: int },
+  quadra: { label: 'Quadra kill', fmt: int },
+  penta: { label: 'Penta kill', fmt: int },
+  drakes: { label: 'Most drakes', fmt: int },
+  grubs: { label: 'Most void grubs', fmt: int },
+  heralds: { label: 'Most heralds', fmt: int },
+  barons: { label: 'Most barons', fmt: int },
+  elders: { label: 'Most Elder dragons', fmt: int },
+};
+const OBJECTIVE_RECORDS = new Set<RecordKey>(['drakes', 'grubs', 'heralds', 'barons', 'elders']);
+const NOT_FOR_SUPPORT_RECORDS = new Set<RecordKey>(['csm', 'turretDmg']);
+/** Holders shown on a card before "+N more". */
+const MAX_HOLDERS = 3;
+
+function RecordCard({ r, manyNights }: { r: StatRecord; manyNights: boolean }) {
+  const info = RECORD_INFO[r.key];
+  const when = (date: string, game: number) => `Game ${game}${manyNights ? ` · ${shortNight(date)}` : ''}`;
+  const more = r.holders.length - MAX_HOLDERS;
+  return (
+    <li className="rec">
+      <span className="rlabel">{info.label}</span>
+      {r.value === null ? (
+        <span className="rnone">Not recorded yet</span>
+      ) : r.value === 0 ? (
+        <span className="rnone">Nobody yet</span>
+      ) : r.flag ? null : (
+        <span className="rval">{info.fmt(r.value)}</span>
+      )}
+      {r.holders.length > 0 && (
+        <ul className="rholders">
+          {r.holders.slice(0, MAX_HOLDERS).map((h) => (
+            <li key={`${h.date}-${h.game}-${h.player}`}>
+              <ChampIcon champ={h.champ} champKey={champKey(h.champ)} />
+              <span>
+                <b>{h.player}</b>
+                <small>
+                  {h.champ} · {when(h.date, h.game)}
+                </small>
+              </span>
+            </li>
+          ))}
+          {more > 0 && (
+            <li className="rmore" title={r.holders.slice(MAX_HOLDERS).map((h) => `${h.player} (${h.champ}, ${when(h.date, h.game)})`).join('\n')}>
+              +{more} more
+            </li>
+          )}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+/** Single-game records: the best one game for each stat, with who did it and on what. */
+function Records({ nights, role }: { nights: StatNight[]; role: Role | 'all' }) {
+  const recs = useMemo(() => records(nights, role === 'all' ? null : role), [nights, role]);
+  const shown = recs.filter((r) => (role === 'jg' || !OBJECTIVE_RECORDS.has(r.key)) && !(role === 'sp' && NOT_FOR_SUPPORT_RECORDS.has(r.key)));
+  const where = role === 'all' ? '' : ` at ${ROLE_NAME[role].toLowerCase()}`;
+  return (
+    <section className="records" aria-labelledby="records-h">
+      <div className="rec-head">
+        <h2 id="records-h">Records</h2>
+        <p className="sub">
+          The best single game for each stat{where}, and who did it on what. Ties all count.
+          {role === 'jg' && " Objectives are their team's in that game."}
+        </p>
+      </div>
+      <ul className="recgrid">
+        {shown.map((r) => (
+          <RecordCard key={r.key} r={r} manyNights={nights.length > 1} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Columns that don't get stars, and how the others are judged. */
+const NO_STARS = new Set(['games', 'winRate']);
+const LOWER_IS_BETTER = new Set(['avgD']);
+const GOLD_ONLY = new Set(['quadras', 'pentas']);
+const MEDAL_TEXT: Record<Medal, string> = { 1: 'Gold star: best in this stat', 2: 'Silver star: second best', 3: 'Bronze star: third best' };
+
+function Star({ medal }: { medal: Medal }) {
+  return (
+    <svg className={`star m${medal}`} viewBox="0 0 24 24" role="img" aria-label={MEDAL_TEXT[medal]}>
+      <title>{MEDAL_TEXT[medal]}</title>
+      <path d="M12 2.6l2.85 5.95 6.55.8-4.83 4.5 1.24 6.5L12 17.15l-5.81 3.2 1.24-6.5L2.6 9.35l6.55-.8z" />
+    </svg>
+  );
+}
+
 function Champ({ name }: { name: string }) {
   return (
     <span className="schamp">
@@ -140,7 +265,7 @@ function Champ({ name }: { name: string }) {
   );
 }
 
-function Table<R>({ rows, cols, first, firstLabel, extra, extraLabel, defaultKey }: {
+function Table<R>({ rows, cols, first, firstLabel, extra, extraLabel, defaultKey, stars = false }: {
   rows: R[];
   cols: Col<R>[];
   first: (r: R) => string;
@@ -148,7 +273,24 @@ function Table<R>({ rows, cols, first, firstLabel, extra, extraLabel, defaultKey
   extra: (r: R) => ReactNode;
   extraLabel: string;
   defaultKey: string;
+  /** Gold, silver and bronze stars for the top three in each stat. */
+  stars?: boolean;
 }) {
+  const starMap = useMemo(() => {
+    const out = new Map<string, Map<string, Medal>>();
+    if (!stars) return out;
+    for (const c of cols) {
+      if (NO_STARS.has(c.key)) continue;
+      const fmt = c.fmt ?? ((v: number | null) => String(v));
+      const entries = rows.map((r) => {
+        const v = c.value(r);
+        const value = typeof v === 'number' ? v : null;
+        return { name: first(r), value, shown: fmt(value) };
+      });
+      out.set(c.key, medals(entries, { lowerBetter: LOWER_IS_BETTER.has(c.key), goldOnly: GOLD_ONLY.has(c.key) }));
+    }
+    return out;
+  }, [stars, cols, rows, first]);
   const [sort, setSort] = useState<{ key: string; desc: boolean }>({ key: defaultKey, desc: true });
   const col = cols.find((c) => c.key === sort.key);
   const sorted = [...rows].sort((a, b) => {
@@ -191,9 +333,11 @@ function Table<R>({ rows, cols, first, firstLabel, extra, extraLabel, defaultKey
               </th>
               {cols.map((c) => {
                 const v = c.value(r);
+                const medal = starMap.get(c.key)?.get(first(r));
                 return (
                   <td key={c.key} className="snum">
                     {typeof v === 'number' || v === null ? (c.fmt ?? String)(v as number | null) : v}
+                    {medal && <Star medal={medal} />}
                   </td>
                 );
               })}
@@ -210,10 +354,8 @@ export function StatsScreen() {
   const [view, setView] = useState<View>('players');
   const [night, setNight] = useState<string>('all');
   const [role, setRole] = useState<Role | 'all'>('all');
-  const data = useMemo(
-    () => aggregate(night === 'all' ? NIGHTS : NIGHTS.filter((n) => n.date === night), role === 'all' ? null : role),
-    [night, role],
-  );
+  const nights = useMemo(() => (night === 'all' ? NIGHTS : NIGHTS.filter((n) => n.date === night)), [night]);
+  const data = useMemo(() => aggregate(nights, role === 'all' ? null : role), [nights, role]);
   const roleName = role === 'all' ? '' : ROLE_NAME[role].toLowerCase();
   const [full, setFull] = useState<boolean>(() => load<boolean>('stats-full') === true);
   const toggleFull = () =>
@@ -309,6 +451,7 @@ export function StatsScreen() {
                 firstLabel="Player"
                 extraLabel="Champions"
                 defaultKey="games"
+                stars
                 extra={(r) => (
                   <span className="champlist">
                     {r.champs.slice(0, 3).map(([c, n]) => (
@@ -333,7 +476,8 @@ export function StatsScreen() {
                 extra={(r) => r.players.map(([p, n]) => (n > 1 ? `${p} ×${n}` : p)).join(', ')}
               />
             )}
-            <Legend keys={shown} full={full} />
+            <Legend keys={shown} full={full} stars={view === 'players'} />
+            <Records nights={nights} role={role} />
           </>
         )}
       </div>
